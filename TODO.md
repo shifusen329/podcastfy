@@ -1,11 +1,15 @@
 # Podcastfy Development Tasks
 
-## 1. Test Image as Input Prompt
-- [ ] Test image content extraction functionality
-- [ ] Verify LLM handling of image descriptions
-- [ ] Test transcript generation from image content
-- [ ] Test TTS generation with image-based transcripts
-- [ ] Add error handling for image processing failures
+## 1. Image Processing Support
+- [x] Test image content extraction functionality
+- [x] Verify LLM handling of image descriptions
+- [x] Test transcript generation from image content
+- [x] Test TTS generation with image-based transcripts
+- [x] Add error handling for image processing failures
+- [ ] Add base64 encoding for local image files
+- [ ] Support Google Cloud Storage URIs for images
+- [ ] Add image format validation
+- [ ] Implement image size optimization
 
 ## 2. Add Voice Selection for Cloud TTS Providers
 - [ ] Add OpenAI voice options:

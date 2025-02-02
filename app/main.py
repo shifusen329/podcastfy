@@ -85,14 +85,17 @@ def create_app():
             yield None, None, update_generation_progress(0, None, 0)[0]
             
             try:
-                # Input validation - only check if any input is provided
+                # Input validation - check if any input is provided
                 if not text_input and not url_input:
                     yield None, "Please provide either text or URL input.", update_generation_progress(0, "No input provided", 0)[0]
                     return
+
+                # Check if URL input is an image file
+                is_image = url_input and any(url_input.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png'])
                 
                 # Add run metadata
                 run_metadata = {
-                    "input_type": "text" if text_input else "url",
+                    "input_type": "image" if is_image else "text" if text_input else "url",
                     "format_type": format_type,
                     "longform_enabled": longform_enabled,
                     "tts_model": tts_model,
@@ -182,13 +185,22 @@ def create_app():
                             yield None, f"Error processing directory: {str(e)}", update_generation_progress(0, "Directory processing failed", 0)[0]
                             return
                     else:
-                        # Regular URL input
-                        transcript_file = generate_podcast(
-                            urls=[url_input],
-                            transcript_only=True,
-                            longform=longform_enabled,
-                            conversation_config=config
-                        )
+                        # Check if it's an image file
+                        if is_image:
+                            transcript_file = generate_podcast(
+                                image_paths=[url_input],
+                                transcript_only=True,
+                                longform=longform_enabled,
+                                conversation_config=config
+                            )
+                        else:
+                            # Regular URL input
+                            transcript_file = generate_podcast(
+                                urls=[url_input],
+                                transcript_only=True,
+                                longform=longform_enabled,
+                                conversation_config=config
+                            )
                 
                 # Read generated transcript
                 with open(transcript_file, 'r') as f:

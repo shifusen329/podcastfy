@@ -7,6 +7,7 @@ This is a development fork of [Podcastfy](https://github.com/souzatharsis/podcas
 - Novel AI TTS integration
 - Kokoro TTS integration
 - Enhanced voice selection for cloud providers
+- Image input support (local paths and URLs)
 - Local LLM support (planned)
 - Sequential workflow options (planned)
 
