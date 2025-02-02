@@ -1,6 +1,6 @@
 """Google Cloud Text-to-Speech provider implementation."""
 
-from google.cloud import texttospeech_v1beta1
+from google.cloud import texttospeech_v1
 from typing import List, Tuple
 from ..base import TTSProvider
 import re
@@ -22,9 +22,8 @@ class GeminiMultiTTS(TTSProvider):
         """
         self.model = model
         try:
-            self.client = texttospeech_v1beta1.TextToSpeechClient(
-                client_options={'api_key': api_key} if api_key else None
-            )
+            # Use Application Default Credentials
+            self.client = texttospeech_v1.TextToSpeechClient()
             logger.info("Successfully initialized GeminiMultiTTS client")
         except Exception as e:
             logger.error(f"Failed to initialize GeminiMultiTTS client: {str(e)}")
@@ -260,7 +259,7 @@ class GeminiMultiTTS(TTSProvider):
             for i, chunk in enumerate(text_chunks, 1):
                 logger.debug(f"Processing chunk {i}/{len(text_chunks)}")
                 # Create multi-speaker markup
-                multi_speaker_markup = texttospeech_v1beta1.MultiSpeakerMarkup()
+                multi_speaker_markup = texttospeech_v1.MultiSpeakerMarkup()
                 
                 # Get pairs for this chunk
                 pairs = self.split_qa(chunk, "", self.get_supported_tags())
@@ -275,7 +274,7 @@ class GeminiMultiTTS(TTSProvider):
                     logger.debug(f"First part split into {len(first_chunks)} chunks")
                     for f_chunk in first_chunks:
                         logger.debug(f"Adding first turn: '{f_chunk[:50]}...' (length: {len(f_chunk)})")
-                        f_turn = texttospeech_v1beta1.MultiSpeakerMarkup.Turn()
+                        f_turn = texttospeech_v1.MultiSpeakerMarkup.Turn()
                         f_turn.text = f_chunk
                         f_turn.speaker = voice
                         multi_speaker_markup.turns.append(f_turn)
@@ -286,7 +285,7 @@ class GeminiMultiTTS(TTSProvider):
                         logger.debug(f"Second part split into {len(second_chunks)} chunks")
                         for s_chunk in second_chunks:
                             logger.debug(f"Adding second turn: '{s_chunk[:50]}...' (length: {len(s_chunk)})")
-                            s_turn = texttospeech_v1beta1.MultiSpeakerMarkup.Turn()
+                            s_turn = texttospeech_v1.MultiSpeakerMarkup.Turn()
                             s_turn.text = s_chunk
                             s_turn.speaker = voice2
                             multi_speaker_markup.turns.append(s_turn)
@@ -294,20 +293,20 @@ class GeminiMultiTTS(TTSProvider):
                 logger.debug(f"Created markup with {len(multi_speaker_markup.turns)} turns")
                 
                 # Create synthesis input with multi-speaker markup
-                synthesis_input = texttospeech_v1beta1.SynthesisInput(
+                synthesis_input = texttospeech_v1.SynthesisInput(
                     multi_speaker_markup=multi_speaker_markup
                 )
                 
                 logger.debug("Calling synthesize_speech API")
                 # Set voice parameters
-                voice_params = texttospeech_v1beta1.VoiceSelectionParams(
+                voice_params = texttospeech_v1.VoiceSelectionParams(
                     language_code="en-US",
                     name=model
                 )
                 
                 # Set audio config
-                audio_config = texttospeech_v1beta1.AudioConfig(
-                    audio_encoding=texttospeech_v1beta1.AudioEncoding.MP3
+                audio_config = texttospeech_v1.AudioConfig(
+                    audio_encoding=texttospeech_v1.AudioEncoding.MP3
                 )
                 
                 # Generate speech for this chunk

@@ -60,20 +60,18 @@ class TextToSpeech:
         """Get provider-specific configuration."""
         # Get provider name in lowercase without 'TTS' suffix
         provider_name = self.provider.__class__.__name__.lower().replace("tts", "")
-
-        # Get provider config from tts_config
-        provider_config = self.tts_config.get(provider_name, {})
-
-        # If provider config is empty, try getting from default config
-        if not provider_config:
-            provider_config = {
-                "model": self.tts_config.get("default_model"),
-                "default_voices": {
-                    "question": self.tts_config.get("default_voice_question"),
-                    "answer": self.tts_config.get("default_voice_answer"),
-                },
-            }
-
+        
+        # Get default voices from the config passed in
+        voices = self.tts_config.get("default_voices", {})
+        
+        # Get model from provider config or default
+        model = self.tts_config.get("default_model")
+        
+        provider_config = {
+            "default_voices": voices,
+            "model": model
+        }
+        
         logger.debug(f"Using provider config: {provider_config}")
         return provider_config
 
@@ -100,9 +98,9 @@ class TextToSpeech:
                 model = provider_config.get("model")
                 audio_data_list = self.provider.generate_audio(
                     cleaned_text,
-                    voice="S",
-                    model="en-US-Studio-MultiSpeaker",
-                    voice2="R" if self.format_type == "conversation" else None,
+                    voice=voice,
+                    model=model,
+                    voice2=voice2 if self.format_type == "conversation" else None,
                     ending_message=self.ending_message,
                 )
 

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class GeminiTTS(TTSProvider):
     """Google Cloud Text-to-Speech provider for single speaker."""
     
-    def __init__(self, api_key: str = None, model: str = "en-US-Journey-D"):
+    def __init__(self, api_key: str = None, model: str = None):
         """
         Initialize Google Cloud TTS provider.
         
@@ -21,14 +21,27 @@ class GeminiTTS(TTSProvider):
         """
         self.model = model
         try:
-            self.client = texttospeech_v1beta1.TextToSpeechClient(
-                client_options={'api_key': api_key} if api_key else None
-            )
+            # Use Application Default Credentials
+            self.client = texttospeech_v1beta1.TextToSpeechClient()
         except Exception as e:
             logger.error(f"Failed to initialize Google TTS client: {str(e)}")
             raise
 
-    def generate_audio(self, text: str, voice: str = "en-US-Journey-D", 
+    def get_available_voices(self):
+        """Get available Journey voices from Google Cloud TTS."""
+        try:
+            response = self.client.list_voices()
+            # Filter for Journey voices
+            journey_voices = [
+                voice.name for voice in response.voices 
+                if "Journey" in voice.name
+            ]
+            return journey_voices
+        except Exception as e:
+            logger.error(f"Failed to fetch voices: {str(e)}")
+            return []
+
+    def generate_audio(self, text: str, voice: str = None, 
                       model: str = None, voice2: str = None, **kwargs) -> bytes:
         """
         Generate audio using Google Cloud TTS API.
