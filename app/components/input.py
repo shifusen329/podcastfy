@@ -13,7 +13,7 @@ def create_input_components():
         )
         url_input = gr.Textbox(
             label="URL Input",
-            placeholder="Or enter a URL or directory path to generate podcast from...",
+            placeholder="Enter a URL or directory path",
             info="You can enter a URL, YouTube link, PDF path, or directory path containing text files"
         )
     
