@@ -51,12 +51,12 @@ def create_app():
                     with gr.Tab("⏱️ Length"):
                         longform_components = create_longform_components()
                 
-                # Progress Tracking
-                progress_components = create_progress_components()
-                
                 # Generate Button
                 with gr.Row():
                     generate_btn = gr.Button("🎙️ Generate Podcast", size="lg", variant="primary")
+                
+                # Progress Tracking
+                progress_components = create_progress_components()
             
             # Right Column - Output
             with gr.Column(scale=2):
@@ -82,12 +82,12 @@ def create_app():
              longform_enabled, chunk_size, num_chunks) = args
             
             # Initialize progress tracking
-            yield None, None, gr.Slider(value=0), gr.Label(value="Starting podcast generation...")
+            yield None, None, update_generation_progress(0, None, 0)[0]
             
             try:
                 # Input validation - only check if any input is provided
                 if not text_input and not url_input:
-                    yield None, "Please provide either text or URL input.", gr.Slider(value=0), gr.Label(value="Error: No input provided")
+                    yield None, "Please provide either text or URL input.", update_generation_progress(0, "No input provided", 0)[0]
                     return
                 
                 # Add run metadata
@@ -135,8 +135,8 @@ def create_app():
                 # Validate style configuration
                 validate_style_config(format_type, config)
                 
-                # Generate transcript
-                yield None, None, gr.Slider(value=25), gr.Label(value="Generating transcript...")
+                # Processing input (Stage 1)
+                yield None, None, update_generation_progress(1, None, 25)[0]
                 
                 # Generate podcast
                 if text_input:
@@ -146,7 +146,7 @@ def create_app():
                             # Combine all text files into one string
                             combined_text, was_truncated = combine_directory_texts(text_input)
                             if was_truncated:
-                                yield None, None, gr.Slider(value=25), gr.Label(value="Warning: Content too large, using most recent files up to 20MB...")
+                                yield None, None, update_generation_progress(1, "Content too large, using most recent files up to 20MB", 25)[0]
                             transcript_file = generate_podcast(
                                 text=combined_text,  # Pass combined text directly
                                 transcript_only=True,
@@ -154,7 +154,7 @@ def create_app():
                                 conversation_config=config
                             )
                         except ValueError as e:
-                            yield None, f"Error processing directory: {str(e)}", gr.Slider(value=0), gr.Label(value="Error: Directory processing failed")
+                            yield None, f"Error processing directory: {str(e)}", update_generation_progress(0, "Directory processing failed", 0)[0]
                             return
                     else:
                         # Regular text input
@@ -171,7 +171,7 @@ def create_app():
                             # Combine all text files into one string
                             combined_text, was_truncated = combine_directory_texts(url_input)
                             if was_truncated:
-                                yield None, None, gr.Slider(value=25), gr.Label(value="Warning: Content too large, using most recent files up to 20MB...")
+                                yield None, None, update_generation_progress(1, "Content too large, using most recent files up to 20MB", 25)[0]
                             transcript_file = generate_podcast(
                                 text=combined_text,  # Pass combined text directly
                                 transcript_only=True,
@@ -179,7 +179,7 @@ def create_app():
                                 conversation_config=config
                             )
                         except ValueError as e:
-                            yield None, f"Error processing directory: {str(e)}", gr.Slider(value=0), gr.Label(value="Error: Directory processing failed")
+                            yield None, f"Error processing directory: {str(e)}", update_generation_progress(0, "Directory processing failed", 0)[0]
                             return
                     else:
                         # Regular URL input
@@ -194,23 +194,24 @@ def create_app():
                 with open(transcript_file, 'r') as f:
                     transcript = f.read()
                 
-                yield None, None, gr.Slider(value=50), gr.Label(value="Transcript generation complete")
+                # Generating transcript (Stage 2)
+                yield None, None, update_generation_progress(2, None, 50)[0]
                 
-                # Generate audio
-                yield None, None, gr.Slider(value=75), gr.Label(value="Generating audio...")
+                # Converting to audio (Stage 3)
+                yield None, None, update_generation_progress(3, None, 75)[0]
                 audio_file = generate_audio(transcript, tts_model, voice1, voice2, format_type)
                 if not audio_file:
-                    yield None, "Failed to generate audio", gr.Slider(value=0), gr.Label(value="Error: Audio generation failed")
+                    yield None, "Failed to generate audio", update_generation_progress(0, "Audio generation failed", 0)[0]
                     return
                 
-                # Complete
-                yield audio_file, transcript, gr.Slider(value=100), gr.Label(value="Podcast generation complete!")
+                # Complete (Stage 4)
+                yield audio_file, transcript, update_generation_progress(4, None, 100)[0]
                 
             except Exception as e:
                 # Add error metadata
                 run_metadata["error"] = str(e)
                 run_metadata["error_type"] = type(e).__name__
-                yield None, f"Error: {str(e)}", gr.Slider(value=0), gr.Label(value=f"Error: Generation failed")
+                yield None, f"Error: {str(e)}", update_generation_progress(0, "Generation failed", 0)[0]
         
         # Style events
         style_components['style'].change(
@@ -312,8 +313,7 @@ def create_app():
             outputs=[
                 audio_output,
                 transcript_output,
-                progress_components['bar'],
-                progress_components['status']
+                progress_components['stages']  # Now contains both progress and status
             ]
         )
     

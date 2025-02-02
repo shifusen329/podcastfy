@@ -2,38 +2,49 @@
 
 import gradio as gr
 
+STAGES = [
+    "Initializing",
+    "Processing Input",
+    "Generating Transcript",
+    "Converting to Audio",
+    "Complete"
+]
+
 def create_progress_components():
-    """Create progress tracking components."""
+    """Create progress tracking components with compact layout."""
     with gr.Group():
-        with gr.Row():
-            progress_bar = gr.Slider(
-                minimum=0,
-                maximum=100,
-                value=0,
-                label="Generation Progress",
-                interactive=False
-            )
-        with gr.Row():
-            status_label = gr.Label(
-                label="Status",
-                value="Ready to generate podcast"
-            )
+        # Combined progress and status indicator
+        progress_status = gr.HTML(
+            value='<div style="font-size: 0.9em; min-width: 300px;">Ready to generate podcast</div>',
+            label="Progress"
+        )
     
     return {
-        'bar': progress_bar,
-        'status': status_label
+        'stages': progress_status,  # Keep the same key for compatibility
+        'bar': progress_status,     # Both point to the same component
+        'status': progress_status   # All point to the same component now
     }
 
-def update_progress(progress, status=None):
-    """Update progress bar and status label."""
-    updates = [gr.Slider(value=progress)]
-    if status:
-        updates.append(gr.Label(value=status))
-    return updates
+def update_progress(stage: int, progress: float = None, status: str = None):
+    """Update progress components."""
+    stage_text = STAGES[stage] if 0 <= stage < len(STAGES) else "Error"
+    progress_text = f" ({progress}%)" if progress is not None else ""
+    
+    # Only show status if it provides additional information
+    status_html = ""
+    if status and not status.lower().startswith(stage_text.lower()):
+        status_html = f'<div style="color: #666;">{status}</div>'
+    
+    html = f'''
+    <div style="font-size: 0.9em; min-width: 300px;">
+        <div>{stage_text}{progress_text}</div>
+        {status_html}
+    </div>
+    '''
+    
+    return [gr.HTML(value=html)]
 
 def reset_progress():
     """Reset progress tracking to initial state."""
-    return [
-        gr.Slider(value=0),
-        gr.Label(value="Ready to generate podcast")
-    ]
+    html = '<div style="font-size: 0.9em; min-width: 300px;">Ready to generate podcast</div>'
+    return [gr.HTML(value=html)]

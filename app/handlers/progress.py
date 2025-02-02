@@ -2,6 +2,7 @@
 
 import gradio as gr
 from langsmith import traceable
+from ..components.progress import STAGES
 
 @traceable(run_name="start_progress", tags=["podcastfy", "progress"])
 def start_progress():
@@ -13,44 +14,62 @@ def start_progress():
     }
     
     try:
-        return [
-            gr.Slider(value=0),
-            gr.Label(value="Starting...")
-        ]
+        html = f'''
+        <div style="font-size: 0.9em; min-width: 300px;">
+            <div>{STAGES[0]} (0%)</div>
+        </div>
+        '''
+        return [gr.HTML(value=html)]
     except Exception as e:
         # Add error metadata
         run_metadata["error"] = str(e)
         run_metadata["error_type"] = type(e).__name__
         print(f"Error starting progress: {str(e)}")
-        return [
-            gr.Slider(value=0),
-            gr.Label(value="Error initializing progress")
-        ]
+        html = '''
+        <div style="font-size: 0.9em; min-width: 300px;">
+            <div>Error (0%)</div>
+            <div style="color: #666;">Error initializing progress</div>
+        </div>
+        '''
+        return [gr.HTML(value=html)]
 
 @traceable(run_name="update_progress", tags=["podcastfy", "progress"])
-def update_generation_progress(progress, status):
-    """Update progress bar and status message."""
+def update_generation_progress(stage: int, status: str, progress: float):
+    """Update progress tracking components."""
     # Add run metadata
     run_metadata = {
-        "stage": "update",
-        "progress": progress,
-        "status": status
+        "stage": stage,
+        "status": status,
+        "progress": progress
     }
     
     try:
-        return [
-            gr.Slider(value=progress),
-            gr.Label(value=status)
-        ]
+        stage_text = STAGES[stage] if 0 <= stage < len(STAGES) else "Error"
+        
+        # Only show status if it provides additional information
+        status_html = ""
+        if status and not status.lower().startswith(stage_text.lower()):
+            status_html = f'<div style="color: #666;">{status}</div>'
+        
+        html = f'''
+        <div style="font-size: 0.9em; min-width: 300px;">
+            <div>{stage_text} ({progress}%)</div>
+            {status_html}
+        </div>
+        '''
+        return [gr.HTML(value=html)]
     except Exception as e:
         # Add error metadata
         run_metadata["error"] = str(e)
         run_metadata["error_type"] = type(e).__name__
         print(f"Error updating progress: {str(e)}")
-        return [
-            gr.Slider(value=progress),
-            gr.Label(value=f"Error updating progress: {str(e)}")
-        ]
+        html = f'''
+        <div style="font-size: 0.9em; min-width: 300px;">
+            <div>Error (0%)</div>
+            <div style="color: #666;">Error updating progress: {str(e)}</div>
+        </div>
+        '''
+        return [gr.HTML(value=html)]
 
 @traceable(run_name="end_progress", tags=["podcastfy", "progress"])
 def end_progress(success=True):
@@ -63,21 +82,29 @@ def end_progress(success=True):
     
     try:
         if success:
-            return [
-                gr.Slider(value=100),
-                gr.Label(value="Complete!")
-            ]
+            html = f'''
+            <div style="font-size: 0.9em; min-width: 300px;">
+                <div>{STAGES[-1]} (100%)</div>
+            </div>
+            '''
+            return [gr.HTML(value=html)]
         else:
-            return [
-                gr.Slider(value=0),
-                gr.Label(value="Failed")
-            ]
+            html = '''
+            <div style="font-size: 0.9em; min-width: 300px;">
+                <div>Error (0%)</div>
+                <div style="color: #666;">Failed</div>
+            </div>
+            '''
+            return [gr.HTML(value=html)]
     except Exception as e:
         # Add error metadata
         run_metadata["error"] = str(e)
         run_metadata["error_type"] = type(e).__name__
         print(f"Error ending progress: {str(e)}")
-        return [
-            gr.Slider(value=0),
-            gr.Label(value=f"Error completing progress: {str(e)}")
-        ]
+        html = f'''
+        <div style="font-size: 0.9em; min-width: 300px;">
+            <div>Error (0%)</div>
+            <div style="color: #666;">Error completing progress: {str(e)}</div>
+        </div>
+        '''
+        return [gr.HTML(value=html)]
