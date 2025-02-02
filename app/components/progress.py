@@ -6,7 +6,9 @@ STAGES = [
     "Initializing",
     "Processing Input",
     "Generating Transcript",
-    "Converting to Audio",
+    "Starting TTS",
+    "Processing TTS Chunks",
+    "Combining Audio",
     "Complete"
 ]
 

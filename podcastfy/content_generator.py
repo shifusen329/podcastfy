@@ -65,6 +65,128 @@ class LLMBackend:
                 api_key=os.environ[api_key_label],
             )
 
+from langsmith.run_helpers import traceable
+
+class LongFormContentGenerator:
+    """
+    Handles generation of long-form podcast conversations by breaking content into manageable chunks.
+    
+    Uses a "Content Chunking with Contextual Linking" strategy to maintain context between segments
+    while generating longer conversations.
+    """
+    
+    def __init__(self, chain, llm, config_conversation: Dict[str, Any]):
+        """Initialize LongFormContentGenerator."""
+        self.llm_chain = chain
+        self.llm = llm
+        self.max_num_chunks = config_conversation.get("max_num_chunks", 7)
+        self.min_chunk_size = config_conversation.get("min_chunk_size", 600)
+
+    @traceable(name="calculate_chunk_size")
+    def __calculate_chunk_size(self, input_content: str) -> int:
+        """Calculate chunk size based on input content length."""
+        input_length = len(input_content)
+        if input_length <= self.min_chunk_size:
+            return input_length
+        
+        maximum_chunk_size = input_length // self.max_num_chunks
+        if maximum_chunk_size >= self.min_chunk_size:
+            return maximum_chunk_size
+        
+        return input_length // (input_length // self.min_chunk_size)
+
+    @traceable(name="chunk_content")
+    def chunk_content(self, input_content: str, chunk_size: int) -> List[str]:
+        """Split input content into manageable chunks while preserving context."""
+        sentences = input_content.split('. ')
+        chunks = []
+        current_chunk = []
+        current_length = 0
+        
+        for sentence in sentences:
+            sentence_length = len(sentence)
+            if current_length + sentence_length > chunk_size and current_chunk:
+                chunks.append('. '.join(current_chunk) + '.')
+                current_chunk = []
+                current_length = 0
+            current_chunk.append(sentence)
+            current_length += sentence_length
+            
+        if current_chunk:
+            chunks.append('. '.join(current_chunk) + '.')
+        return chunks
+
+    @traceable(name="enhance_prompt")
+    def enhance_prompt_params(self, prompt_params: Dict, 
+                            part_idx: int, 
+                            total_parts: int,
+                            chat_context: str) -> Dict:
+        """Enhance prompt parameters for long-form content generation."""
+        enhanced_params = prompt_params.copy()
+        enhanced_params["context"] = chat_context
+        
+        COMMON_INSTRUCTIONS = """
+            Podcast conversation so far is given in CONTEXT.
+            Continue the natural flow of conversation. Follow-up on the very previous point/question without repeating topics or points already discussed!
+            Hence, the transition should be smooth and natural. Avoid abrupt transitions.
+            Make sure the first to speak is different from the previous speaker. Look at the last tag in CONTEXT to determine the previous speaker. 
+            If last tag in CONTEXT is <Person1>, then the first to speak now should be <Person2>.
+            If last tag in CONTEXT is <Person2>, then the first to speak now should be <Person1>.
+            This is a live conversation without any breaks.
+            Hence, avoid statements such as "we'll discuss after a short break" or "picking up where we left off".
+        """
+
+        if part_idx == 0:
+            enhanced_params["instruction"] = f"""
+            ALWAYS START THE CONVERSATION GREETING THE AUDIENCE: Welcome to {enhanced_params["podcast_name"]} - {enhanced_params["podcast_tagline"]}.
+            You are generating the Introduction part of a long podcast conversation.
+            Don't cover any topics yet, just introduce yourself and the topic. Leave the rest for later parts.
+            """
+        elif part_idx == total_parts - 1:
+            enhanced_params["instruction"] = f"""
+            You are generating the last part of a long podcast conversation. 
+            {COMMON_INSTRUCTIONS}
+            For this part, discuss the below INPUT and then make concluding remarks in a podcast conversation format and END THE CONVERSATION GREETING THE AUDIENCE WITH PERSON1 ALSO SAYING A GOOD BYE MESSAGE.
+            """
+        else:
+            enhanced_params["instruction"] = f"""
+            You are generating part {part_idx+1} of {total_parts} parts of a long podcast conversation.
+            {COMMON_INSTRUCTIONS}
+            For this part, discuss the below INPUT in a podcast conversation format.
+            """
+        
+        return enhanced_params
+
+    @traceable(name="generate_longform")
+    def generate_long_form(self, input_content: str, prompt_params: Dict) -> str:
+        """Generate a complete long-form conversation using chunked content."""
+        # Get chunk size
+        chunk_size = self.__calculate_chunk_size(input_content)
+        chunks = self.chunk_content(input_content, chunk_size)
+        conversation_parts = []
+        chat_context = input_content
+        num_parts = len(chunks)
+        print(f"Generating {num_parts} parts")
+        
+        for i, chunk in enumerate(chunks):
+            enhanced_params = self.enhance_prompt_params(
+                prompt_params,
+                part_idx=i,
+                total_parts=num_parts,
+                chat_context=chat_context
+            )
+            enhanced_params["input_text"] = chunk
+            response = self.llm_chain.invoke(enhanced_params)
+            if i == 0:
+                chat_context = response
+            else:
+                chat_context = chat_context + response
+            print(f"Generated part {i+1}/{num_parts}: Size {len(chunk)} characters.")
+            conversation_parts.append(response)
+
+        return "\n".join(conversation_parts)
+
+
 class ContentGenerator:
     def __init__(
         self, 
@@ -225,7 +347,11 @@ The podcast should be titled "{podcast_name}" with the tagline "{podcast_tagline
             logger.info(f"Parameters: {prompt_params}")
 
             # Generate content
-            self.response = self.chain.invoke(prompt_params)
+            if longform:
+                generator = LongFormContentGenerator(self.chain, self.llm, self.config_conversation)
+                self.response = generator.generate_long_form(cleaned_input, prompt_params)
+            else:
+                self.response = self.chain.invoke(prompt_params)
             logger.info(f"Raw LLM response (first 500 chars): {self.response[:500]}...")
 
             # Clean response

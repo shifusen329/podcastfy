@@ -238,15 +238,21 @@ def create_app():
                 # Generating transcript (Stage 2)
                 yield None, None, update_generation_progress(2, None, 50)[0]
                 
-                # Converting to audio (Stage 3)
-                yield None, None, update_generation_progress(3, None, 75)[0]
+                # Starting TTS (Stage 3)
+                yield None, None, update_generation_progress(3, None, 60)[0]
+                
+                # Processing TTS Chunks (Stage 4)
+                yield None, None, update_generation_progress(4, None, 70)[0]
+                
+                # Combining Audio (Stage 5)
+                yield None, None, update_generation_progress(5, None, 80)[0]
                 audio_file = generate_audio(transcript, tts_model, voice1, voice2, format_type)
                 if not audio_file:
                     yield None, "Failed to generate audio", update_generation_progress(0, "Audio generation failed", 0)[0]
                     return
                 
-                # Complete (Stage 4)
-                yield audio_file, transcript, update_generation_progress(4, None, 100)[0]
+                # Complete (Stage 6)
+                yield audio_file, transcript, update_generation_progress(6, None, 100)[0]
                 
             except Exception as e:
                 # Add error metadata

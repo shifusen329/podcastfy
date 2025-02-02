@@ -109,14 +109,17 @@ class TextToSpeech:
                     if not audio_data_list:
                         raise ValueError("No audio data chunks provided")
 
-                    logger.info(f"Starting audio processing with {len(audio_data_list)} chunks")
+                    print(f"\nStarting TTS processing with {len(audio_data_list)} chunks...")
                     combined = AudioSegment.empty()
                     
                     for i, chunk in enumerate(audio_data_list):
+                        print(f"Processing TTS chunk {i+1}/{len(audio_data_list)}")
                         segment = AudioSegment.from_file(io.BytesIO(chunk))
-                        logger.info(f"################### Loaded chunk {i}, duration: {len(segment)}ms")
+                        print(f"Chunk {i+1} duration: {len(segment)}ms")
                         
                         combined += segment
+                    
+                    print("Combining audio chunks...")
                     
                     # Export with high quality settings
                     os.makedirs(os.path.dirname(output_file), exist_ok=True)

@@ -171,8 +171,10 @@ def generate_audio(transcript, tts_model, voice1=None, voice2=None, format_type=
         audio_file = os.path.join(AUDIO_DIR, random_filename)
         os.makedirs(AUDIO_DIR, exist_ok=True)
         
+        print("\nStarting TTS generation...")
         # Convert transcript to speech
         text_to_speech.convert_to_speech(transcript, audio_file)
+        print("TTS generation complete!")
         return audio_file
             
     except Exception as e:
