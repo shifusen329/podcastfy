@@ -89,11 +89,34 @@ def sample_voice(voice1, voice2, tts_model, format_type="conversation"):
             tts_provider = KokoroTTS()
             model = "kokoro"
         elif tts_model == "openai":
-            tts_provider = OpenAITTS()
+            # Get API key from config
+            from podcastfy.utils.config import load_config
+            config = load_config()
+            api_key = config.OPENAI_API_KEY
+            if not api_key:
+                raise ValueError("OpenAI API key not found in config")
+            tts_provider = OpenAITTS(api_key=api_key)
             model = "tts-1-hd"
         elif tts_model == "gemini":
-            tts_provider = GeminiTTS()
-            model = None  # Uses default model
+            try:
+                # Get provider config
+                from podcastfy.utils.config_conversation import load_conversation_config
+                config = load_conversation_config()
+                tts_config = config.get("text_to_speech", {})
+                gemini_config = tts_config.get("gemini", {})
+                model = gemini_config.get("model")
+                if not model:
+                    raise ValueError("Model not found in config for Gemini TTS")
+                
+                tts_provider = GeminiTTS()
+                # Validate voices
+                available_voices = tts_provider.get_available_voices()
+                if voice1 not in available_voices:
+                    raise ValueError(f"Invalid voice1: {voice1}")
+                if format_type == "conversation" and voice2 and voice2 not in available_voices:
+                    raise ValueError(f"Invalid voice2: {voice2}")
+            except Exception as e:
+                raise ValueError(f"Failed to initialize Gemini TTS: {str(e)}")
         elif tts_model == "geminimulti":
             from podcastfy.tts.providers.geminimulti import GeminiMultiTTS
             tts_provider = GeminiMultiTTS()

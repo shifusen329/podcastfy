@@ -31,11 +31,13 @@
 - [ ] Add better error handling for allowlisting errors
 
 ## 3. Add Voice Sampling for Cloud TTS Providers
-- [ ] Create sample text generator for each provider
-- [ ] Implement sample audio generation
-- [ ] Add sample button to UI
+- [x] Create sample text generator for each provider
+- [x] Implement sample audio generation
+- [x] Add sample button to UI
 - [ ] Cache sample audio to avoid regeneration
 - [ ] Add loading states during sample generation
+- [x] Add proper model loading from config
+- [x] Add error handling for missing models/voices
 
 ## 4. Fine-tune Longform Chunking
 - [ ] Analyze current chunking algorithm
