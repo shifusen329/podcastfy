@@ -12,25 +12,28 @@
 - [ ] Implement image size optimization
 
 ## 2. Add Voice Selection for Cloud TTS Providers
-- [ ] Add OpenAI voice options:
+- [x] Add OpenAI voice options:
   - alloy
   - echo
   - fable
   - onyx
   - nova
   - shimmer
-- [ ] Add Gemini voice options:
+- [x] Add Gemini voice options:
   - Journey-D
   - Journey-O
   - Other available voices
-- [ ] Update voice.py handler to show voice dropdowns for cloud providers
-- [ ] Update voice component UI to display available voices
+- [x] Update voice.py handler to show voice dropdowns for cloud providers
+- [x] Update voice component UI to display available voices
 - [ ] Add voice preview descriptions
+- [ ] Request multi-speaker access from Google Cloud
+- [ ] Add Studio voice options once allowlisted
+- [ ] Add better error handling for allowlisting errors
 
 ## 3. Add Voice Sampling for Cloud TTS Providers
 - [ ] Create sample text generator for each provider
 - [ ] Implement sample audio generation
-- [ ] Add sample button to UI for cloud providers
+- [ ] Add sample button to UI
 - [ ] Cache sample audio to avoid regeneration
 - [ ] Add loading states during sample generation
 
