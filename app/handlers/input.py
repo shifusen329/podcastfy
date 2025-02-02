@@ -7,7 +7,7 @@ from ..components.style import create_conversation_config
 from ..components.longform import create_chunk_config
 from ..config.settings import AUDIO_DIR, TRANSCRIPTS_DIR
 
-def preview_transcript(text_input, url_input, style, role1, role2, engagement_techniques, longform_enabled, chunk_size, num_chunks):
+def preview_transcript(text_input, url_input, file_input, style, role1, role2, engagement_techniques, longform_enabled, chunk_size, num_chunks):
     """Handle transcript preview generation."""
     try:
         # Create conversation config
@@ -32,8 +32,36 @@ def preview_transcript(text_input, url_input, style, role1, role2, engagement_te
                 longform=longform_enabled,
                 conversation_config=config
             )
+        elif file_input:
+            # Determine file type
+            file_path = file_input
+            if file_path.lower().endswith(('.jpg', '.jpeg', '.png')):
+                transcript_file = generate_podcast(
+                    image_paths=[file_path],
+                    transcript_only=True,
+                    longform=longform_enabled,
+                    conversation_config=config
+                )
+            elif file_path.lower().endswith('.pdf'):
+                transcript_file = generate_podcast(
+                    urls=[file_path],  # PDF extractor handles this
+                    transcript_only=True,
+                    longform=longform_enabled,
+                    conversation_config=config
+                )
+            elif file_path.lower().endswith('.txt'):
+                with open(file_path, 'r') as f:
+                    content = f.read()
+                transcript_file = generate_podcast(
+                    text=content,
+                    transcript_only=True,
+                    longform=longform_enabled,
+                    conversation_config=config
+                )
+            else:
+                return "Unsupported file type. Please upload an image (.jpg, .jpeg, .png), PDF, or text file."
         else:
-            return "Please provide either text or URL input."
+            return "Please provide input via text, URL, or file upload."
         
         # Read generated transcript
         with open(transcript_file, 'r') as f:

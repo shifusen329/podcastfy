@@ -76,7 +76,7 @@ def create_app():
         def generate_podcast_interface(*args):
             """Main interface for podcast generation."""
             # Extract arguments
-            (text_input, url_input, format_type, style, creativity, podcast_name, podcast_tagline,
+            (text_input, url_input, file_input, format_type, style, creativity, podcast_name, podcast_tagline,
              dialogue_structure, role1, role2, engagement, user_instructions,
              tts_model, voice1, voice2, output_language,
              longform_enabled, chunk_size, num_chunks) = args
@@ -86,8 +86,8 @@ def create_app():
             
             try:
                 # Input validation - check if any input is provided
-                if not text_input and not url_input:
-                    yield None, "Please provide either text or URL input.", update_generation_progress(0, "No input provided", 0)[0]
+                if not text_input and not url_input and not file_input:
+                    yield None, "Please provide input via text, URL, or file upload.", update_generation_progress(0, "No input provided", 0)[0]
                     return
 
                 # Check if URL input is an image file
@@ -95,7 +95,7 @@ def create_app():
                 
                 # Add run metadata
                 run_metadata = {
-                    "input_type": "image" if is_image else "text" if text_input else "url",
+                    "input_type": "file" if file_input else "image" if is_image else "text" if text_input else "url",
                     "format_type": format_type,
                     "longform_enabled": longform_enabled,
                     "tts_model": tts_model,
@@ -167,6 +167,35 @@ def create_app():
                             longform=longform_enabled,
                             conversation_config=config
                         )
+                elif file_input:
+                    # Determine file type
+                    file_path = file_input
+                    if file_path.lower().endswith(('.jpg', '.jpeg', '.png')):
+                        transcript_file = generate_podcast(
+                            image_paths=[file_path],
+                            transcript_only=True,
+                            longform=longform_enabled,
+                            conversation_config=config
+                        )
+                    elif file_path.lower().endswith('.pdf'):
+                        transcript_file = generate_podcast(
+                            urls=[file_path],  # PDF extractor handles this
+                            transcript_only=True,
+                            longform=longform_enabled,
+                            conversation_config=config
+                        )
+                    elif file_path.lower().endswith('.txt'):
+                        with open(file_path, 'r') as f:
+                            content = f.read()
+                        transcript_file = generate_podcast(
+                            text=content,
+                            transcript_only=True,
+                            longform=longform_enabled,
+                            conversation_config=config
+                        )
+                    else:
+                        yield None, "Unsupported file type. Please upload an image (.jpg, .jpeg, .png), PDF, or text file.", update_generation_progress(0, "Invalid file type", 0)[0]
+                        return
                 else:  # url_input
                     # Check if input is a directory path
                     if is_text_directory(url_input):
@@ -304,6 +333,7 @@ def create_app():
             inputs=[
                 input_components['text_input'],
                 input_components['url_input'],
+                input_components['file_input'],
                 style_components['format_type'],
                 style_components['style'],
                 style_components['creativity'],
