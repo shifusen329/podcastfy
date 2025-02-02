@@ -1,49 +1,12 @@
-.pypirc
+# Environment variables
+.env
+.env.*
 
-specs/
-
-*.whl
-*.wheels
-
-# Exclude aliases file
-alias.sh
-
-local_*.ipynb
-*.ipynb_checkpoints
-
-# Python-specific ignores
+# Python artifacts
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Virtual environment
-venv/
-env/
-.env
-
-# IDE-specific files
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS-specific files
-.DS_Store
-Thumbs.db
-
-# Project-specific ignores
-attachments/
-
-# Logs
-*.log
-
-# Temporary files
-*.tmp
-
-# Compiled Python files
-*.pyc
-
-# Distribution / packaging
+*.so
 .Python
 build/
 develop-eggs/
@@ -61,63 +24,30 @@ wheels/
 .installed.cfg
 *.egg
 
-# PyInstaller
-*.manifest
-*.spec
+# Virtual environment
+venv/
+env/
+ENV/
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+# Generated content
+data/audio/*
+!data/audio/.gitkeep
+data/transcripts/*
+!data/transcripts/.gitkeep
 
-# Unit test / coverage reports
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
 htmlcov/
 .tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-.pytest_cache/
 
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-
-# Poetry
-poetry.lock
-.poetry/
-
-# Poetry
-.venv/
-dist/
-
-# Python
-*.pyc
-__pycache__/
-*.egg-info/
+# Logs
+*.log
+logs/

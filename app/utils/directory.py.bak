@@ -1,0 +1,55 @@
+"""Directory handling utilities."""
+
+import os
+import re
+from typing import List
+
+def natural_sort_key(s: str) -> List[str]:
+    """Key function for natural sorting of strings with numbers."""
+    return [int(text) if text.isdigit() else text.lower()
+            for text in re.split('([0-9]+)', s)]
+
+def get_directory_text_files(directory_path: str) -> List[str]:
+    """
+    Get a list of text file paths from a directory, sorted naturally.
+    
+    Args:
+        directory_path (str): Path to directory containing text files
+        
+    Returns:
+        List[str]: List of full paths to text files, sorted naturally
+        
+    Raises:
+        ValueError: If directory doesn't exist or contains no text files
+    """
+    if not os.path.isdir(directory_path):
+        raise ValueError(f"Directory not found: {directory_path}")
+    
+    # Get all .txt files and sort them naturally
+    files = [f for f in os.listdir(directory_path) if f.endswith('.txt')]
+    if not files:
+        raise ValueError(f"No text files found in directory: {directory_path}")
+    
+    files.sort(key=natural_sort_key)
+    
+    # Return full paths
+    return [os.path.join(directory_path, f) for f in files]
+
+def is_text_directory(path: str) -> bool:
+    """
+    Check if a path is a directory containing text files.
+    
+    Args:
+        path (str): Path to check
+        
+    Returns:
+        bool: True if path is a directory containing at least one .txt file
+    """
+    try:
+        if not os.path.isdir(path):
+            return False
+        
+        # Check if directory contains any .txt files
+        return any(f.endswith('.txt') for f in os.listdir(path))
+    except:
+        return False

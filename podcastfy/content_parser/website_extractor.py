@@ -17,149 +17,155 @@ from typing import List
 logger = logging.getLogger(__name__)
 
 class WebsiteExtractor:
-	def __init__(self):
-		"""
-		Initialize the WebsiteExtractor.
-		"""
-		self.config = load_config()
-		self.website_extractor_config = self.config.get('website_extractor', {})
-		self.unwanted_tags = self.website_extractor_config.get('unwanted_tags', [])
-		self.user_agent = self.website_extractor_config.get('user_agent', 'Mozilla/5.0')
-		self.timeout = self.website_extractor_config.get('timeout', 10)
-		self.remove_patterns = self.website_extractor_config.get('markdown_cleaning', {}).get('remove_patterns', [])
+    def __init__(self):
+        """
+        Initialize the WebsiteExtractor.
+        """
+        self.config = load_config()
+        self.website_extractor_config = self.config.get('website_extractor', {})
+        self.unwanted_tags = self.website_extractor_config.get('unwanted_tags', [])
+        self.user_agent = self.website_extractor_config.get('user_agent', 'Mozilla/5.0')
+        self.timeout = self.website_extractor_config.get('timeout', 10)
+        self.remove_patterns = self.website_extractor_config.get('markdown_cleaning', {}).get('remove_patterns', [])
 
-	def extract_content(self, url: str) -> str:
-		"""
-		Extract clean text content from a website using BeautifulSoup.
+    def extract_content(self, url: str) -> str:
+        """
+        Extract clean text content from a website using BeautifulSoup.
 
-		Args:
-			url (str): Website URL.
+        Args:
+            url (str): Website URL.
 
-		Returns:
-			str: Extracted clean text content.
+        Returns:
+            str: Extracted clean text content.
 
-		Raises:
-			Exception: If there's an error in extracting the content.
-		"""
-		try:
-			# Normalize the URL
-			normalized_url = self.normalize_url(url)
+        Raises:
+            Exception: If there's an error in extracting the content.
+        """
+        try:
+            # Normalize the URL
+            normalized_url = self.normalize_url(url)
 
-			# Request the webpage
-			headers = {'User-Agent': self.user_agent}
-			response = requests.get(normalized_url, headers=headers, timeout=self.timeout)
-			response.raise_for_status()  # Raise an exception for bad status codes
+            # Request the webpage
+            headers = {'User-Agent': self.user_agent}
+            response = requests.get(normalized_url, headers=headers, timeout=self.timeout)
+            response.raise_for_status()  # Raise an exception for bad status codes
 
-			# Parse the page content with BeautifulSoup
-			soup = BeautifulSoup(response.text, 'html.parser')
+            # Parse the page content with BeautifulSoup
+            soup = BeautifulSoup(response.text, 'html.parser')
+            logger.info(f"Successfully parsed HTML from {normalized_url}")
 
-			# Remove unwanted elements
-			self.remove_unwanted_elements(soup)
+            # Remove unwanted elements
+            self.remove_unwanted_elements(soup)
+            logger.info("Removed unwanted elements from HTML")
 
-			# Extract and clean the text content
-			raw_text = soup.get_text(separator="\n")  # Get all text content
-			cleaned_content = self.clean_content(raw_text)
+            # Extract and clean the text content
+            raw_text = soup.get_text(separator="\n")  # Get all text content
+            logger.info(f"Raw text content (first 500 chars): {raw_text[:500]}...")
 
-			return cleaned_content
-		except requests.RequestException as e:
-			logger.error(f"Failed to extract content from {url}: {str(e)}")
-			raise Exception(f"Failed to extract content from {url}: {str(e)}")
-		except Exception as e:
-			logger.error(f"An unexpected error occurred while extracting content from {url}: {str(e)}")
-			raise Exception(f"An unexpected error occurred while extracting content from {url}: {str(e)}")
+            cleaned_content = self.clean_content(raw_text)
+            logger.info(f"Cleaned content (first 500 chars): {cleaned_content[:500]}...")
 
-	def normalize_url(self, url: str) -> str:
-		"""
-		Normalize the given URL by adding scheme if missing and ensuring it's a valid URL.
+            return cleaned_content
 
-		Args:
-			url (str): The URL to normalize.
+        except requests.RequestException as e:
+            logger.error(f"Failed to extract content from {url}: {str(e)}")
+            raise Exception(f"Failed to extract content from {url}: {str(e)}")
+        except Exception as e:
+            logger.error(f"An unexpected error occurred while extracting content from {url}: {str(e)}")
+            raise Exception(f"An unexpected error occurred while extracting content from {url}: {str(e)}")
 
-		Returns:
-			str: The normalized URL.
+    def normalize_url(self, url: str) -> str:
+        """
+        Normalize the given URL by adding scheme if missing and ensuring it's a valid URL.
 
-		Raises:
-			ValueError: If the URL is invalid after normalization attempts.
-		"""
-		# If the URL doesn't start with a scheme, add 'https://'
-		if not url.startswith(('http://', 'https://')):
-			url = 'https://' + url
+        Args:
+            url (str): The URL to normalize.
 
-		# Parse the URL
-		parsed = urlparse(url)
+        Returns:
+            str: The normalized URL.
 
-		# Ensure the URL has a valid scheme and netloc
-		if not all([parsed.scheme, parsed.netloc]):
-			raise ValueError(f"Invalid URL: {url}")
+        Raises:
+            ValueError: If the URL is invalid after normalization attempts.
+        """
+        # If the URL doesn't start with a scheme, add 'https://'
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
 
-		return parsed.geturl()
+        # Parse the URL
+        parsed = urlparse(url)
 
-	def remove_unwanted_elements(self, soup: BeautifulSoup) -> None:
-		"""
-		Remove unwanted elements from the BeautifulSoup object.
+        # Ensure the URL has a valid scheme and netloc
+        if not all([parsed.scheme, parsed.netloc]):
+            raise ValueError(f"Invalid URL: {url}")
 
-		Args:
-			soup (BeautifulSoup): The BeautifulSoup object to clean.
-		"""
-		for tag in self.unwanted_tags:
-			for element in soup.find_all(tag):
-				element.decompose()
+        return parsed.geturl()
 
-	def clean_content(self, content: str) -> str:
-		"""
-		Clean the extracted content by removing unnecessary whitespace and applying
-		custom cleaning patterns.
+    def remove_unwanted_elements(self, soup: BeautifulSoup) -> None:
+        """
+        Remove unwanted elements from the BeautifulSoup object.
 
-		Args:
-			content (str): The content to clean.
+        Args:
+            soup (BeautifulSoup): The BeautifulSoup object to clean.
+        """
+        for tag in self.unwanted_tags:
+            for element in soup.find_all(tag):
+                element.decompose()
 
-		Returns:
-			str: Cleaned text content.
-		"""
-		# Decode HTML entities
-		cleaned_content = html.unescape(content)
+    def clean_content(self, content: str) -> str:
+        """
+        Clean the extracted content by removing unnecessary whitespace and applying
+        custom cleaning patterns.
 
-		# Remove extra whitespace
-		cleaned_content = re.sub(r'\s+', ' ', cleaned_content)
+        Args:
+            content (str): The content to clean.
 
-		# Remove extra newlines
-		cleaned_content = re.sub(r'\n{3,}', '\n\n', cleaned_content)
+        Returns:
+            str: Cleaned text content.
+        """
+        # Decode HTML entities
+        cleaned_content = html.unescape(content)
 
-		# Apply custom cleaning patterns from config
-		for pattern in self.remove_patterns:
-			cleaned_content = re.sub(pattern, '', cleaned_content)
+        # Remove extra whitespace
+        cleaned_content = re.sub(r'\s+', ' ', cleaned_content)
 
-		return cleaned_content.strip()
+        # Remove extra newlines
+        cleaned_content = re.sub(r'\n{3,}', '\n\n', cleaned_content)
+
+        # Apply custom cleaning patterns from config
+        for pattern in self.remove_patterns:
+            cleaned_content = re.sub(pattern, '', cleaned_content)
+
+        return cleaned_content.strip()
 
 def main(seed: int = 42) -> None:
-	"""
-	Main function to test the WebsiteExtractor class.
-	"""
-	logging.basicConfig(level=logging.INFO)
+    """
+    Main function to test the WebsiteExtractor class.
+    """
+    logging.basicConfig(level=logging.INFO)
 
-	# Create an instance of WebsiteExtractor
-	extractor = WebsiteExtractor()
+    # Create an instance of WebsiteExtractor
+    extractor = WebsiteExtractor()
 
-	# Test URLs
-	test_urls: List[str] = [
-		"www.souzatharsis.com",
-		"https://en.wikipedia.org/wiki/Web_scraping"
-	]
+    # Test URLs
+    test_urls: List[str] = [
+        "www.souzatharsis.com",
+        "https://en.wikipedia.org/wiki/Web_scraping"
+    ]
 
-	for url in test_urls:
-		try:
-			logger.info(f"Extracting content from: {url}")
-			content = extractor.extract_content(url)
+    for url in test_urls:
+        try:
+            logger.info(f"Extracting content from: {url}")
+            content = extractor.extract_content(url)
 
-			# Print the first 500 characters of the extracted content
-			logger.info(f"Extracted content (first 500 characters):\n{content[:500]}...")
+            # Print the first 500 characters of the extracted content
+            logger.info(f"Extracted content (first 500 characters):\n{content[:500]}...")
 
-			# Print the total length of the extracted content
-			logger.info(f"Total length of extracted content: {len(content)} characters")
-			logger.info("-" * 50)
+            # Print the total length of the extracted content
+            logger.info(f"Total length of extracted content: {len(content)} characters")
+            logger.info("-" * 50)
 
-		except Exception as e:
-			logger.error(f"An error occurred while processing {url}: {str(e)}")
+        except Exception as e:
+            logger.error(f"An error occurred while processing {url}: {str(e)}")
 
 if __name__ == "__main__":
-	main()
+    main()

@@ -21,17 +21,6 @@ import copy
 
 import logging
 
-# Configure logging to show all levels and write to both file and console
-""" logging.basicConfig(
-    level=logging.DEBUG,  # Show all levels of logs
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('podcastfy.log'),  # Save to file
-        logging.StreamHandler()  # Print to console
-    ]
-) """
-
-
 logger = setup_logger(__name__)
 
 app = typer.Typer()
@@ -52,7 +41,8 @@ def process_content(
     model_name: Optional[str] = None,
     api_key_label: Optional[str] = None,
     topic: Optional[str] = None,
-    longform: bool = False
+    longform: bool = False,
+    format_type: Optional[str] = None
 ):
     """
     Process URLs, a transcript file, image paths, or raw text to generate a podcast or transcript.
@@ -81,31 +71,48 @@ def process_content(
             if urls or topic or (text and longform and len(text.strip()) < 100):
                 content_extractor = ContentExtractor()
 
+            # Get format type from conversation config or parameter
+            format_type = format_type or conv_config.get("format_type", "conversation")
+            logger.info(f"Using format type: {format_type}")
+
             content_generator = ContentGenerator(
                 is_local=is_local,
                 model_name=model_name,
                 api_key_label=api_key_label,
-                conversation_config=conv_config.to_dict()
+                conversation_config=conv_config.to_dict(),
+                format_type=format_type
             )
 
             combined_content = ""
             
             if urls:
-                logger.info(f"Processing {len(urls)} links")
-                contents = [content_extractor.extract_content(link) for link in urls]
+                logger.info(f"Processing URLs: {urls}")
+                contents = []
+                for link in urls:
+                    logger.info(f"Extracting content from: {link}")
+                    content = content_extractor.extract_content(link)
+                    logger.info(f"Extracted content (first 500 chars): {content[:500]}...")
+                    contents.append(content)
                 combined_content += "\n\n".join(contents)
+                logger.info(f"Combined URL content (first 500 chars): {combined_content[:500]}...")
 
             if text:
                 if longform and len(text.strip()) < 100:
                     logger.info("Text too short for direct long-form generation. Extracting context...")
                     expanded_content = content_extractor.generate_topic_content(text)
+                    logger.info(f"Expanded content (first 500 chars): {expanded_content[:500]}...")
                     combined_content += f"\n\n{expanded_content}"
                 else:
+                    logger.info(f"Using raw text input (first 500 chars): {text[:500]}...")
                     combined_content += f"\n\n{text}"
 
             if topic:
+                logger.info(f"Generating content for topic: {topic}")
                 topic_content = content_extractor.generate_topic_content(topic)
+                logger.info(f"Generated topic content (first 500 chars): {topic_content[:500]}...")
                 combined_content += f"\n\n{topic_content}"
+
+            logger.info(f"Final combined content (first 500 chars): {combined_content[:500]}...")
 
             # Generate Q&A content using output directory from conversation config
             random_filename = f"transcript_{uuid.uuid4().hex}.txt"
@@ -198,6 +205,12 @@ def main(
         "-lf", 
         help="Generate long-form content (only available for text input without images)"
     ),
+    format_type: str = typer.Option(
+        None,
+        "--format-type",
+        "-ft",
+        help="Format type (conversation or monologue)"
+    ),
 ):
     """
     Generate a podcast or transcript from a list of URLs, a file containing URLs, a transcript file, image files, or raw text.
@@ -231,7 +244,8 @@ def main(
                 model_name=llm_model_name,
                 api_key_label=api_key_label,
                 topic=topic,
-                longform=longform
+                longform=longform,
+                format_type=format_type
             )
         else:
             urls_list = urls or []
@@ -255,7 +269,8 @@ def main(
                 model_name=llm_model_name,
                 api_key_label=api_key_label,
                 topic=topic,
-                longform=longform
+                longform=longform,
+                format_type=format_type
             )
 
         if transcript_only:
@@ -289,6 +304,7 @@ def generate_podcast(
     api_key_label: Optional[str] = None,
     topic: Optional[str] = None,
     longform: bool = False,
+    format_type: Optional[str] = None,
 ) -> Optional[str]:
     """
     Generate a podcast or transcript from a list of URLs, a file containing URLs, a transcript file, or image files.
@@ -307,6 +323,7 @@ def generate_podcast(
         llm_model_name (Optional[str]): LLM model name for content generation.
         api_key_label (Optional[str]): Environment variable name for LLM API key.
         topic (Optional[str]): Topic to generate podcast about.
+        format_type (Optional[str]): Format type (conversation or monologue).
 
     Returns:
         Optional[str]: Path to the final podcast audio file, or None if only generating a transcript.
@@ -355,7 +372,8 @@ def generate_podcast(
                 model_name=llm_model_name,
                 api_key_label=api_key_label,
                 topic=topic,
-                longform=longform
+                longform=longform,
+                format_type=format_type
             )
         else:
             urls_list = urls or []
@@ -381,7 +399,8 @@ def generate_podcast(
                 model_name=llm_model_name,
                 api_key_label=api_key_label,
                 topic=topic,
-                longform=longform
+                longform=longform,
+                format_type=format_type
             )
 
     except Exception as e:
