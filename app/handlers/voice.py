@@ -6,10 +6,8 @@ import tempfile
 import gradio as gr
 from langsmith import traceable
 from podcastfy.text_to_speech import TextToSpeech
-import sys
-sys.path.append("/home/administrator/podcastfy-dev")  # Add root to path
-from novel_ai_tts import NovelAITTS
-from kokoro_tts import KokoroTTS
+from podcastfy.tts.providers.novelai import NovelAITTS
+from podcastfy.tts.providers.kokoro import KokoroTTS
 from podcastfy.tts.providers.openai import OpenAITTS
 from podcastfy.tts.providers.gemini import GeminiTTS
 from ..components.voice import get_model_voices, create_sample_text
