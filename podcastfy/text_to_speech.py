@@ -111,15 +111,26 @@ class TextToSpeech:
 
                     print(f"\nStarting TTS processing with {len(audio_data_list)} chunks...")
                     combined = AudioSegment.empty()
+                    total_duration = 0
                     
                     for i, chunk in enumerate(audio_data_list):
-                        print(f"Processing TTS chunk {i+1}/{len(audio_data_list)}")
+                        print(f"\nProcessing TTS chunk {i+1}/{len(audio_data_list)}")
+                        print(f"  - Size: {len(chunk)/1024:.1f}KB")
+                        
                         segment = AudioSegment.from_file(io.BytesIO(chunk))
-                        print(f"Chunk {i+1} duration: {len(segment)}ms")
+                        duration_sec = len(segment)/1000
+                        total_duration += duration_sec
+                        
+                        print(f"  - Duration: {duration_sec:.1f}s")
+                        print(f"  - Running total: {total_duration:.1f}s")
                         
                         combined += segment
                     
-                    print("Combining audio chunks...")
+                    print("\nExporting final audio:")
+                    print(f"  - Total duration: {total_duration:.1f}s")
+                    print(f"  - Format: {self.audio_format}")
+                    print(f"  - Bitrate: 320k")
+                    print(f"  - Output: {output_file}")
                     
                     # Export with high quality settings
                     os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -129,6 +140,7 @@ class TextToSpeech:
                         codec="libmp3lame",
                         bitrate="320k"
                     )
+                    print("\nAudio export complete!")
                     
                 except Exception as e:
                     logger.error(f"Error during audio processing: {str(e)}")
@@ -140,6 +152,12 @@ class TextToSpeech:
                 voice2 = provider_config.get("default_voices", {}).get("answer")
                 model = provider_config.get("model")
                 
+                print(f"\nGenerating audio with {self.provider.__class__.__name__}:")
+                print(f"  - Model: {model}")
+                print(f"  - Voice: {voice}")
+                if self.format_type == "conversation" and voice2:
+                    print(f"  - Secondary voice: {voice2}")
+                
                 # Generate audio with voice2 for conversation format
                 audio_data = self.provider.generate_audio(
                     cleaned_text,
@@ -148,10 +166,24 @@ class TextToSpeech:
                     voice2=voice2 if self.format_type == "conversation" else None
                 )
                 
+                print(f"\nProcessing audio:")
+                print(f"  - Size: {len(audio_data)/1024:.1f}KB")
+                
+                # Load into AudioSegment to get duration
+                segment = AudioSegment.from_file(io.BytesIO(audio_data))
+                duration_sec = len(segment)/1000
+                print(f"  - Duration: {duration_sec:.1f}s")
+                
+                print(f"\nExporting audio:")
+                print(f"  - Format: {self.audio_format}")
+                print(f"  - Output: {output_file}")
+                
                 # Save audio data directly
                 os.makedirs(os.path.dirname(output_file), exist_ok=True)
                 with open(output_file, "wb") as f:
                     f.write(audio_data)
+                
+                print("\nAudio export complete!")
                 logger.info(f"Audio saved to {output_file}")
 
         except Exception as e:

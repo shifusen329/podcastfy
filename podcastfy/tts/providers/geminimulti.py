@@ -40,13 +40,13 @@ class GeminiMultiTTS(TTSProvider):
         Returns:
             List[str]: List of text chunks with proper speaker tags preserved
         """
-        logger.debug(f"Starting chunk_text with text length: {len(text)} bytes")
+        logger.info(f"\nStarting chunk_text with text length: {len(text)} bytes")
         
         # Split text into tagged sections, preserving both Person1/Person2 and Speaker tags
         pattern = r'(<(?:Person[12]|Speaker)>.*?</(?:Person[12]|Speaker)>)'
         sections = re.split(pattern, text, flags=re.DOTALL)
         sections = [s.strip() for s in sections if s.strip()]
-        logger.debug(f"Split text into {len(sections)} sections")
+        logger.info(f"Split text into {len(sections)} sections")
         
         chunks = []
         current_chunk = ""
@@ -166,7 +166,7 @@ class GeminiMultiTTS(TTSProvider):
                         segment = AudioSegment.from_file(temp_file, format="mp3")
                         if len(segment) > 0:
                             valid_chunks.append(segment)
-                            logger.debug(f"Successfully processed chunk {i}")
+                            logger.info(f"Successfully processed chunk {i}")
                         else:
                             logger.warning(f"Zero-length segment in chunk {i}")
                     except Exception as e:
@@ -187,11 +187,19 @@ class GeminiMultiTTS(TTSProvider):
                 raise RuntimeError("No valid audio chunks to merge")
             
             # Merge valid chunks
+            logger.info(f"\nMerging {len(valid_chunks)} valid audio chunks...")
             combined = valid_chunks[0]
-            for segment in valid_chunks[1:]:
+            total_duration = len(combined)/1000
+            logger.info(f"First chunk duration: {total_duration:.1f}s")
+            
+            for i, segment in enumerate(valid_chunks[1:], 2):
+                duration = len(segment)/1000
+                total_duration += duration
+                logger.info(f"Adding chunk {i}, duration: {duration:.1f}s (total: {total_duration:.1f}s)")
                 combined = combined + segment
             
             # Export with specific parameters
+            logger.info("\nExporting final audio...")
             output = BytesIO()
             combined.export(
                 output,
@@ -204,6 +212,7 @@ class GeminiMultiTTS(TTSProvider):
             if len(result) == 0:
                 raise RuntimeError("Export produced empty output")
             
+            logger.info(f"Final audio size: {len(result)/1024:.1f}KB, duration: {total_duration:.1f}s")
             return result
             
         except Exception as e:
@@ -248,7 +257,7 @@ class GeminiMultiTTS(TTSProvider):
         Handles text longer than 5000 bytes by chunking and merging.
         """
         logger.info(f"Starting audio generation for text of length: {len(text)}")
-        logger.debug(f"Parameters: voice={voice}, voice2={voice2}, model={model}")
+        logger.info(f"Parameters: voice={voice}, voice2={voice2}, model={model}")
         try:
             # Split text into chunks if needed
             text_chunks = self.chunk_text(text)
@@ -257,23 +266,23 @@ class GeminiMultiTTS(TTSProvider):
             
             # Process each chunk
             for i, chunk in enumerate(text_chunks, 1):
-                logger.debug(f"Processing chunk {i}/{len(text_chunks)}")
+                logger.info(f"\nProcessing chunk {i}/{len(text_chunks)}")
                 # Create multi-speaker markup
                 multi_speaker_markup = texttospeech_v1.MultiSpeakerMarkup()
                 
                 # Get pairs for this chunk
                 pairs = self.split_qa(chunk, "", self.get_supported_tags())
-                logger.debug(f"Found {len(pairs)} pairs in chunk {i}")
+                logger.info(f"Found {len(pairs)} pairs in chunk {i}")
                 
                 # Add turns for each pair
                 for j, (first_part, second_part) in enumerate(pairs, 1):
-                    logger.debug(f"Processing pair {j}/{len(pairs)}")
+                    logger.info(f"\nProcessing pair {j}/{len(pairs)} in chunk {i}")
                     
                     # Split first part into smaller chunks if needed
                     first_chunks = self.split_turn_text(first_part.strip())
-                    logger.debug(f"First part split into {len(first_chunks)} chunks")
-                    for f_chunk in first_chunks:
-                        logger.debug(f"Adding first turn: '{f_chunk[:50]}...' (length: {len(f_chunk)})")
+                    logger.info(f"First part split into {len(first_chunks)} chunks")
+                    for k, f_chunk in enumerate(first_chunks, 1):
+                        logger.info(f"Adding first turn {k}/{len(first_chunks)}: '{f_chunk[:50]}...' (length: {len(f_chunk)})")
                         f_turn = texttospeech_v1.MultiSpeakerMarkup.Turn()
                         f_turn.text = f_chunk
                         f_turn.speaker = voice
@@ -282,22 +291,22 @@ class GeminiMultiTTS(TTSProvider):
                     # Only process second part if it exists (will be empty for monologue format)
                     if second_part:
                         second_chunks = self.split_turn_text(second_part.strip())
-                        logger.debug(f"Second part split into {len(second_chunks)} chunks")
-                        for s_chunk in second_chunks:
-                            logger.debug(f"Adding second turn: '{s_chunk[:50]}...' (length: {len(s_chunk)})")
+                        logger.info(f"Second part split into {len(second_chunks)} chunks")
+                        for k, s_chunk in enumerate(second_chunks, 1):
+                            logger.info(f"Adding second turn {k}/{len(second_chunks)}: '{s_chunk[:50]}...' (length: {len(s_chunk)})")
                             s_turn = texttospeech_v1.MultiSpeakerMarkup.Turn()
                             s_turn.text = s_chunk
                             s_turn.speaker = voice2
                             multi_speaker_markup.turns.append(s_turn)
                 
-                logger.debug(f"Created markup with {len(multi_speaker_markup.turns)} turns")
+                logger.info(f"Created markup with {len(multi_speaker_markup.turns)} turns")
                 
                 # Create synthesis input with multi-speaker markup
                 synthesis_input = texttospeech_v1.SynthesisInput(
                     multi_speaker_markup=multi_speaker_markup
                 )
                 
-                logger.debug("Calling synthesize_speech API")
+                logger.info("\nCalling synthesize_speech API...")
                 # Set voice parameters
                 voice_params = texttospeech_v1.VoiceSelectionParams(
                     language_code="en-US",

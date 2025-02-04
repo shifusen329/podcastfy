@@ -73,7 +73,12 @@ class GeminiTTS(TTSProvider):
                 
                 # Generate audio for Person1 content
                 person1_audio = []
-                for content in person1_matches:
+                logger.info(f"\nGenerating Person1 audio segments ({len(person1_matches)} segments):")
+                for i, content in enumerate(person1_matches, 1):
+                    logger.info(f"\nPerson1 Segment {i}/{len(person1_matches)}:")
+                    logger.info(f"Content length: {len(content)} chars")
+                    logger.info(f"Content preview: {content[:100]}...")
+                    
                     synthesis_input = texttospeech_v1beta1.SynthesisInput(text=content.strip())
                     voice_params = texttospeech_v1beta1.VoiceSelectionParams(
                         language_code="-".join(voice.split("-")[:2]),
@@ -82,16 +87,24 @@ class GeminiTTS(TTSProvider):
                     audio_config = texttospeech_v1beta1.AudioConfig(
                         audio_encoding=texttospeech_v1beta1.AudioEncoding.MP3
                     )
+                    
+                    logger.info(f"Sending TTS request for Person1 segment {i}...")
                     response = self.client.synthesize_speech(
                         input=synthesis_input,
                         voice=voice_params,
                         audio_config=audio_config
                     )
+                    logger.info(f"Received audio response: {len(response.audio_content)/1024:.1f}KB")
                     person1_audio.append(response.audio_content)
                 
                 # Generate audio for Person2 content
                 person2_audio = []
-                for content in person2_matches:
+                logger.info(f"\nGenerating Person2 audio segments ({len(person2_matches)} segments):")
+                for i, content in enumerate(person2_matches, 1):
+                    logger.info(f"\nPerson2 Segment {i}/{len(person2_matches)}:")
+                    logger.info(f"Content length: {len(content)} chars")
+                    logger.info(f"Content preview: {content[:100]}...")
+                    
                     synthesis_input = texttospeech_v1beta1.SynthesisInput(text=content.strip())
                     voice_params = texttospeech_v1beta1.VoiceSelectionParams(
                         language_code="-".join(voice2.split("-")[:2]),
@@ -100,39 +113,67 @@ class GeminiTTS(TTSProvider):
                     audio_config = texttospeech_v1beta1.AudioConfig(
                         audio_encoding=texttospeech_v1beta1.AudioEncoding.MP3
                     )
+                    
+                    logger.info(f"Sending TTS request for Person2 segment {i}...")
                     response = self.client.synthesize_speech(
                         input=synthesis_input,
                         voice=voice_params,
                         audio_config=audio_config
                     )
+                    logger.info(f"Received audio response: {len(response.audio_content)/1024:.1f}KB")
                     person2_audio.append(response.audio_content)
                 
                 # Merge audio segments alternating between Person1 and Person2
                 from pydub import AudioSegment
                 import io
                 
+                logger.info("\nMerging audio segments:")
                 combined = AudioSegment.empty()
-                for p1, p2 in zip(person1_audio, person2_audio):
+                total_duration = 0
+                
+                for i, (p1, p2) in enumerate(zip(person1_audio, person2_audio), 1):
+                    logger.info(f"\nProcessing pair {i}/{min(len(person1_audio), len(person2_audio))}:")
+                    
                     # Add Person1 audio
                     segment = AudioSegment.from_file(io.BytesIO(p1))
+                    duration = len(segment)/1000
+                    total_duration += duration
+                    logger.info(f"Person1 duration: {duration:.1f}s")
                     combined += segment
+                    
                     # Add Person2 audio
                     segment = AudioSegment.from_file(io.BytesIO(p2))
+                    duration = len(segment)/1000
+                    total_duration += duration
+                    logger.info(f"Person2 duration: {duration:.1f}s")
                     combined += segment
                 
                 # Handle any remaining Person1 audio
                 if len(person1_audio) > len(person2_audio):
+                    logger.info("\nProcessing final Person1 segment:")
                     segment = AudioSegment.from_file(io.BytesIO(person1_audio[-1]))
+                    duration = len(segment)/1000
+                    total_duration += duration
+                    logger.info(f"Duration: {duration:.1f}s")
                     combined += segment
                 
+                logger.info(f"\nTotal duration: {total_duration:.1f}s")
+                
                 # Export combined audio
+                logger.info("\nExporting combined audio...")
                 output = io.BytesIO()
                 combined.export(output, format="mp3", codec="libmp3lame", bitrate="320k")
-                return output.getvalue()
+                final_audio = output.getvalue()
+                logger.info(f"Final audio size: {len(final_audio)/1024:.1f}KB")
+                return final_audio
                 
             else:
                 # For monologue format or when no voice2 provided, use single voice
+                logger.info("\nProcessing monologue format:")
                 cleaned_text = re.sub(r'</?(?:Speaker|Person[12])>', '', text)
+                logger.info(f"Cleaned text length: {len(cleaned_text)} chars")
+                logger.info(f"Preview: {cleaned_text[:100]}...")
+                
                 synthesis_input = texttospeech_v1beta1.SynthesisInput(text=cleaned_text)
                 voice_params = texttospeech_v1beta1.VoiceSelectionParams(
                     language_code="-".join(voice.split("-")[:2]),
@@ -141,11 +182,14 @@ class GeminiTTS(TTSProvider):
                 audio_config = texttospeech_v1beta1.AudioConfig(
                     audio_encoding=texttospeech_v1beta1.AudioEncoding.MP3
                 )
+                
+                logger.info("\nSending TTS request...")
                 response = self.client.synthesize_speech(
                     input=synthesis_input,
                     voice=voice_params,
                     audio_config=audio_config
                 )
+                logger.info(f"Received audio response: {len(response.audio_content)/1024:.1f}KB")
                 return response.audio_content
             
         except Exception as e:
