@@ -177,3 +177,17 @@ class PodcastTemplate:
             NotImplementedError: If subclass doesn't implement this method
         """
         raise NotImplementedError("Subclasses must implement get_template()")
+
+    def get_longform_instructions(self) -> str:
+        """Get format-specific instructions for longform content.
+        
+        This method should be overridden by subclasses to provide their specific
+        longform generation instructions.
+        
+        Returns:
+            Format-specific instructions for longform content
+            
+        Raises:
+            NotImplementedError: If subclass doesn't implement this method
+        """
+        raise NotImplementedError("Subclasses must implement get_longform_instructions()")

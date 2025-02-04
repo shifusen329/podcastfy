@@ -85,7 +85,58 @@ class MonologueTemplate(PodcastTemplate):
     def get_template(self) -> str:
         """Get the monologue template string."""
         return """Format Requirements:
-1. Use <Speaker> tags to mark all speech segments
-2. Present as a single narrator throughout
-3. Use natural pauses between segments
-4. All content will be combined into a single continuous speech"""
+1. Tag Usage:
+   - Use <Speaker> tags for all content
+   - Each paragraph must be in its own tag
+   - Tags must be properly closed
+   - No nested or repeated tags
+
+2. Paragraph Structure:
+   - One complete thought per paragraph
+   - Each paragraph in its own <Speaker> tag
+   - No run-on paragraphs
+   - No untagged text
+
+3. Voice Format:
+   - Single speaker throughout
+   - First-person perspective
+   - No dialogue or multiple voices
+
+Example format:
+<Speaker>Welcome to this discussion.</Speaker>
+<Speaker>Let me share my thoughts on this topic.</Speaker>
+<Speaker>Here's what I've discovered in my research.</Speaker>"""
+
+    def get_longform_instructions(self) -> str:
+        """Get format-specific instructions for longform content."""
+        print(f"\n=== Getting Monologue Longform Instructions ===")
+        instructions = """
+Format Rules for Long-form Monologue:
+1. Tag Usage:
+   - Use <Speaker> tags for each paragraph
+   - Each paragraph must be in its own tag
+   - Tags must be properly closed
+   - No untagged text
+
+2. Paragraph Structure:
+   - Each new thought in a separate <Speaker> tag
+   - Keep paragraphs focused and complete
+   - Use clear topic transitions
+   - No run-on paragraphs
+   - Each paragraph must build on previous context
+
+3. Voice Format:
+   - Maintain same narrative voice throughout
+   - Keep consistent first-person perspective
+   - Use single speaker throughout
+   - No dialogue or multiple voices
+   - Keep tone and style consistent
+
+4. Flow Rules:
+   - Continue directly from previous context
+   - No meta-commentary about parts or breaks
+   - No greetings or farewells except when instructed
+   - Keep narrative flowing naturally
+   - Each paragraph must connect to the next"""
+        print(f"Instructions:\n{instructions}")
+        return instructions
