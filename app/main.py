@@ -53,9 +53,10 @@ def create_app():
                     with gr.Tab("⏱️ Length"):
                         longform_components = create_longform_components()
                 
-                # Generate Button
+                # Generate Buttons
                 with gr.Row():
                     generate_btn = gr.Button("🎙️ Generate Podcast", size="lg", variant="primary")
+                    generate_transcript_btn = gr.Button("📝 Generate Transcript", size="lg", variant="secondary")
                 
                 # Progress Tracking
                 progress_components = create_progress_components()
@@ -74,6 +75,137 @@ def create_app():
                 )
         
         # Event handlers
+        @traceable(run_name="generate_transcript", tags=["podcastfy"])
+        def generate_transcript_interface(*args):
+            """Interface for transcript-only generation."""
+            # Extract arguments
+            (text_input, url_input, file_input, directory_input, recursive, file_types,
+             format_type, style, creativity, podcast_name, podcast_tagline,
+             dialogue_structure, role1, role2, engagement, user_instructions,
+             longform_enabled, chunk_size, num_chunks) = args
+            
+            # Initialize progress tracking
+            yield None, update_generation_progress(0, None, 0)[0]
+            
+            try:
+                # Input validation - check if any input is provided
+                if not any([text_input, url_input, file_input, directory_input]):
+                    yield "Please provide input via text, URL, file upload, or directory path.", update_generation_progress(0, "No input provided", 0)[0]
+                    return
+
+                # Process multiple URLs if provided
+                urls = None
+                if url_input:
+                    url_file = process_multiple_urls(url_input)
+                    if url_file:
+                        with open(url_file, 'r') as f:
+                            urls = [line.strip() for line in f if line.strip()]
+                        os.unlink(url_file)  # Clean up temporary file
+                
+                # Create conversation config dictionary
+                config = {
+                    'format_type': format_type,
+                    'creativity': creativity
+                }
+                
+                # Add optional fields if they exist
+                if style:
+                    config['conversation_style'] = [style]  # Single style as list for compatibility
+                if podcast_name:
+                    config['podcast_name'] = podcast_name
+                if podcast_tagline:
+                    config['podcast_tagline'] = podcast_tagline
+                if dialogue_structure:
+                    config['dialogue_structure'] = [dialogue_structure]  # Single structure as list
+                if role1:
+                    config['roles_person1'] = role1
+                if role2:  # Allow role2 to be passed to LLM even for monologue
+                    config['roles_person2'] = role2  # LLM will handle it based on format
+                if engagement:
+                    config['engagement_techniques'] = engagement
+                if user_instructions:
+                    config['user_instructions'] = user_instructions
+
+                if longform_enabled:
+                    config['chunk_settings'] = {
+                        'max_num_chunks': num_chunks,
+                        'min_chunk_size': chunk_size
+                    }
+                
+                # Validate style configuration
+                validate_style_config(format_type, config)
+                
+                # Processing input (Stage 1)
+                yield None, update_generation_progress(1, None, 50)[0]
+                
+                # Generate transcript
+                if directory_input:
+                    # Use content extractor to process directory
+                    content_extractor = ContentExtractor()
+                    directory_content = content_extractor.extract_from_directory(
+                        directory=directory_input,
+                        recursive=recursive,
+                        file_types=file_types if "All Files" not in file_types else None
+                    )
+                    # Pass as text input to generate_podcast
+                    transcript_file = generate_podcast(
+                        text=directory_content,
+                        transcript_only=True,
+                        longform=longform_enabled,
+                        conversation_config=config
+                    )
+                elif text_input:
+                    transcript_file = generate_podcast(
+                        text=text_input,
+                        transcript_only=True,
+                        longform=longform_enabled,
+                        conversation_config=config
+                    )
+                elif file_input:
+                    # Handle multiple files
+                    image_paths = []
+                    text_content = []
+                    file_urls = []
+                    
+                    for file_path in file_input:
+                        if file_path.lower().endswith(('.jpg', '.jpeg', '.png')):
+                            image_paths.append(file_path)
+                        elif file_path.lower().endswith('.pdf'):
+                            file_urls.append(file_path)  # PDF extractor handles this
+                        elif file_path.lower().endswith('.txt'):
+                            with open(file_path, 'r') as f:
+                                text_content.append(f.read())
+                        else:
+                            yield f"Unsupported file type: {file_path}", update_generation_progress(0, "Invalid file type", 0)[0]
+                            return
+                    
+                    # Generate transcript with all inputs
+                    transcript_file = generate_podcast(
+                        text="\n\n".join(text_content) if text_content else None,
+                        urls=file_urls if file_urls else None,
+                        image_paths=image_paths if image_paths else None,
+                        transcript_only=True,
+                        longform=longform_enabled,
+                        conversation_config=config
+                    )
+                elif urls:  # From processed URL input
+                    transcript_file = generate_podcast(
+                        urls=urls,
+                        transcript_only=True,
+                        longform=longform_enabled,
+                        conversation_config=config
+                    )
+                
+                # Read generated transcript
+                with open(transcript_file, 'r') as f:
+                    transcript = f.read()
+                
+                # Complete (Stage 2)
+                yield transcript, update_generation_progress(2, None, 100)[0]
+                
+            except Exception as e:
+                yield f"Error: {str(e)}", update_generation_progress(0, "Generation failed", 0)[0]
+
         @traceable(run_name="generate_podcast", tags=["podcastfy"])
         def generate_podcast_interface(*args):
             """Main interface for podcast generation."""
@@ -328,6 +460,35 @@ def create_app():
         )
         
         # Generate events
+        generate_transcript_btn.click(
+            fn=generate_transcript_interface,
+            inputs=[
+                input_components['text_input'],
+                input_components['url_input'],
+                input_components['file_input'],
+                input_components['directory_input'],
+                input_components['recursive'],
+                input_components['file_types'],
+                style_components['format_type'],
+                style_components['style'],
+                style_components['creativity'],
+                style_components['podcast_name'],
+                style_components['podcast_tagline'],
+                style_components['dialogue_structure'],
+                style_components['role1'],
+                style_components['role2'],
+                style_components['engagement'],
+                style_components['user_instructions'],
+                longform_components['longform_enabled'],
+                longform_components['chunk_size'],
+                longform_components['num_chunks']
+            ],
+            outputs=[
+                transcript_output,
+                progress_components['stages']
+            ]
+        )
+
         generate_btn.click(
             fn=generate_podcast_interface,
             inputs=[
