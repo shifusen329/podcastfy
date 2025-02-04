@@ -76,10 +76,11 @@ class LongFormContentGenerator:
     while generating longer conversations.
     """
     
-    def __init__(self, chain, llm, config_conversation: Dict[str, Any]):
+    def __init__(self, chain, llm, config_conversation: Dict[str, Any], template):
         """Initialize LongFormContentGenerator."""
         self.llm_chain = chain
         self.llm = llm
+        self.template = template
         self.max_num_chunks = config_conversation.get("max_num_chunks", 7)
         self.min_chunk_size = config_conversation.get("min_chunk_size", 600)
 
@@ -121,71 +122,156 @@ class LongFormContentGenerator:
     def enhance_prompt_params(self, prompt_params: Dict, 
                             part_idx: int, 
                             total_parts: int,
-                            chat_context: str) -> Dict:
-        """Enhance prompt parameters for long-form content generation."""
+                            chat_context: str,
+                            chunk: str) -> Dict:
+        """Enhance prompt parameters for content generation."""
+        # Log input state
+        print(f"\n=== Enhancing Prompt for Part {part_idx+1}/{total_parts} ===")
+        print(f"Context length: {len(chat_context) if chat_context else 0}")
+        if chat_context:
+            print(f"Previous context ends with: {chat_context[-200:] if len(chat_context) > 200 else chat_context}")
+        else:
+            print("No previous context")
+
         enhanced_params = prompt_params.copy()
         enhanced_params["context"] = chat_context
-        
-        COMMON_INSTRUCTIONS = """
-            Podcast conversation so far is given in CONTEXT.
-            Continue the natural flow of conversation. Follow-up on the very previous point/question without repeating topics or points already discussed!
-            Hence, the transition should be smooth and natural. Avoid abrupt transitions.
-            Make sure the first to speak is different from the previous speaker. Look at the last tag in CONTEXT to determine the previous speaker. 
-            If last tag in CONTEXT is <Person1>, then the first to speak now should be <Person2>.
-            If last tag in CONTEXT is <Person2>, then the first to speak now should be <Person1>.
-            This is a live conversation without any breaks.
-            Hence, avoid statements such as "we'll discuss after a short break" or "picking up where we left off".
-        """
 
+        # Get format-specific longform instructions
+        format_instructions = self.template.get_longform_instructions()
+        print(f"\nFormat Instructions:\n{format_instructions}")
+
+        # Add chunk position rules
+        print(f"\n{'First' if part_idx == 0 else 'Last' if part_idx == total_parts - 1 else 'Middle'} Chunk Instructions:")
+        
+        # Determine chunk-specific instructions
         if part_idx == 0:
-            enhanced_params["instruction"] = f"""
-            ALWAYS START THE CONVERSATION GREETING THE AUDIENCE: Welcome to {enhanced_params["podcast_name"]} - {enhanced_params["podcast_tagline"]}.
-            You are generating the Introduction part of a long podcast conversation.
-            Don't cover any topics yet, just introduce yourself and the topic. Leave the rest for later parts.
+            chunk_rules = f"""
+            1. Start with: Welcome to {enhanced_params["podcast_name"]} - {enhanced_params["podcast_tagline"]}.
+            2. Begin discussing the content.
+            3. End with an open-ended question or statement that leads into the next topic.
+            4. DO NOT end with any farewells or thank yous.
             """
         elif part_idx == total_parts - 1:
-            enhanced_params["instruction"] = f"""
-            You are generating the last part of a long podcast conversation. 
-            {COMMON_INSTRUCTIONS}
-            For this part, discuss the below INPUT and then make concluding remarks in a podcast conversation format and END THE CONVERSATION GREETING THE AUDIENCE WITH PERSON1 ALSO SAYING A GOOD BYE MESSAGE.
+            chunk_rules = """
+            1. Continue the previous discussion naturally.
+            2. End with a brief thank you to the listeners.
             """
         else:
-            enhanced_params["instruction"] = f"""
-            You are generating part {part_idx+1} of {total_parts} parts of a long podcast conversation.
-            {COMMON_INSTRUCTIONS}
-            For this part, discuss the below INPUT in a podcast conversation format.
+            chunk_rules = """
+            1. Continue the conversation exactly where it left off.
+            2. Respond directly to the last speaker's points.
+            3. End with an open-ended question or statement that leads into the next topic.
+            4. DO NOT:
+               - Introduce yourself or the podcast
+               - End with any farewells or thank yous
+               - Mention PODCASTIFY
+               - Add any transitional phrases like "moving on" or "next"
             """
+
+        enhanced_params["instruction"] = f"""
+        {format_instructions}
+
+        IMPORTANT: You are generating part {part_idx + 1} of {total_parts}. 
         
+        Previous context: {chat_context if chat_context else "No previous context - this is the start"}
+        
+        Rules for this part:
+        {chunk_rules}
+        
+        Additional Rules:
+        1. Use the previous context to maintain conversation flow.
+        2. Each speaker must respond to what was previously said.
+        3. NO meta-commentary about parts or segments.
+        4. ONLY discuss the content from this section: {chunk[:200]}...
+        """
+        
+        print(f"\nFinal Instructions:\n{enhanced_params['instruction']}")
         return enhanced_params
 
     @traceable(name="generate_longform")
     def generate_long_form(self, input_content: str, prompt_params: Dict) -> str:
-        """Generate a complete long-form conversation using chunked content."""
-        # Get chunk size
+        """Generate a complete long-form conversation using chunked content.
+        
+        This version maintains conversation flow by:
+        1. Using minimal context (only previous response)
+        2. Avoiding redundant introductions/farewells
+        3. Ensuring proper speaker alternation
+        
+        Args:
+            input_content (str): Input text to be chunked and processed
+            prompt_params (Dict): Base parameters for prompt generation
+            
+        Returns:
+            str: Complete generated conversation with proper flow
+            
+        Implementation Notes:
+        - chat_context starts empty (not full input_content)
+        - Each chunk only sees previous response as context
+        - Chunks are processed sequentially with minimal context
+        - First chunk handles introduction
+        - Middle chunks continue naturally
+        - Last chunk handles conclusion
+        """
+        # Log initial state
+        print("\n=== Starting Long Form Generation ===")
+        print(f"Input content length: {len(input_content)}")
+        print(f"First 200 chars: {input_content[:200]}...")
+        
+        # Calculate appropriate chunk size
         chunk_size = self.__calculate_chunk_size(input_content)
+        print(f"\nCalculated chunk size: {chunk_size}")
+        
         chunks = self.chunk_content(input_content, chunk_size)
-        conversation_parts = []
-        chat_context = input_content
         num_parts = len(chunks)
-        print(f"Generating {num_parts} parts")
+        print(f"Split into {num_parts} chunks")
+        
+        # Track conversation pieces
+        conversation_parts = []
+        chat_context = ""  # Start with empty context
         
         for i, chunk in enumerate(chunks):
+            print(f"\n=== Processing Chunk {i+1}/{num_parts} ===")
+            print(f"Chunk size: {len(chunk)}")
+            print(f"Chunk preview: {chunk[:200]}...")
+            
+            # For middle and end parts, use only previous response as context
+            if i > 0:
+                chat_context = conversation_parts[-1]
+                print(f"\nUsing previous response as context:")
+                print(f"Context preview: {chat_context[:200]}...")
+                print(f"Context ends with: {chat_context[-200:] if len(chat_context) > 200 else chat_context}")
+            
+            # Prepare parameters for this chunk
             enhanced_params = self.enhance_prompt_params(
                 prompt_params,
                 part_idx=i,
                 total_parts=num_parts,
-                chat_context=chat_context
+                chat_context=chat_context,
+                chunk=chunk
             )
             enhanced_params["input_text"] = chunk
-            response = self.llm_chain.invoke(enhanced_params)
-            if i == 0:
-                chat_context = response
-            else:
-                chat_context = chat_context + response
-            print(f"Generated part {i+1}/{num_parts}: Size {len(chunk)} characters.")
+            
+            # Generate response for this chunk
+            print("\nGenerating response...")
+            # Create a new chain for each chunk to avoid parameter persistence
+            chain = ChatPromptTemplate.from_messages([
+                SystemMessage(content=enhanced_params["instruction"]),
+                HumanMessage(content=f"Please analyze this input and generate a conversation. {chunk}")
+            ]) | self.llm | StrOutputParser()
+            # Remove instruction from params since it's now in the system message
+            params_without_instruction = {k: v for k, v in enhanced_params.items() if k != "instruction"}
+            response = chain.invoke(params_without_instruction)
+            print(f"\nGenerated Response Preview:")
+            print(f"First 200 chars: {response[:200]}...")
+            print(f"Last 200 chars: {response[-200:]}...")
+            
             conversation_parts.append(response)
-
-        return "\n".join(conversation_parts)
+        
+        # Combine all parts into final conversation
+        print("\n=== Combining Parts ===")
+        final_conversation = "\n".join(conversation_parts)
+        print(f"Final length: {len(final_conversation)}")
+        return final_conversation
 
 
 class ContentGenerator:
@@ -252,13 +338,10 @@ Style Guidelines:
 
 Content Instructions:
 1. Read and understand the provided content carefully
-2. Create a podcast that discusses ONLY the topics and information present in this content
+2. Create a podcast that discusses ONLY the topics and information present
 3. Do not introduce unrelated topics or make up information
-4. For conversation format:
-   - Each speaker's line must be properly tagged with <Person1> or <Person2>
-   - Tags must be adjacent with no spaces between them (e.g., </Person1><Person2>)
-   - Each line should be a complete thought
-   - Maintain natural turn-taking between speakers
+4. Stay focused on the main themes and key points
+5. Use evidence and examples from the provided content
 
 The podcast should be titled "{podcast_name}" with the tagline "{podcast_tagline}"."""
         system_content = f"{system_content}\n\n{style_instructions}"
@@ -350,7 +433,7 @@ The podcast should be titled "{podcast_name}" with the tagline "{podcast_tagline
 
             # Generate content
             if longform:
-                generator = LongFormContentGenerator(self.chain, self.llm, self.config_conversation)
+                generator = LongFormContentGenerator(self.chain, self.llm, self.config_conversation, self.template)
                 self.response = generator.generate_long_form(cleaned_input, prompt_params)
             else:
                 self.response = self.chain.invoke(prompt_params)

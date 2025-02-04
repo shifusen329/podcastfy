@@ -40,7 +40,10 @@
 - [x] Add error handling for missing models/voices
 
 ## 4. Fine-tune Longform Chunking
-- [ ] Analyze current chunking algorithm
+- [x] Analyze current chunking algorithm
+  - Fixed context bleeding between chunks
+  - Improved chain creation per chunk
+  - Enhanced prompt parameter handling
 - [ ] Test different chunk sizes and counts
 - [ ] Measure output length vs settings
 - [ ] Update UI descriptions to match actual output
@@ -77,10 +80,13 @@
 - [ ] Add error handling for endpoint connectivity
 
 ## 7. Add Sequential Workflow Option
+- [x] Split transcript/TTS into separate steps
+  - Implemented chunking with separate generation steps
+  - Added context management between chunks
+  - Added detailed logging for each step
 - [ ] Add workflow selection UI:
   - One-shot (current)
   - Sequential (new)
-- [ ] Split transcript/TTS into separate steps
 - [ ] Add transcript preview/edit step
 - [ ] Add progress tracking for each step
 - [ ] Allow saving intermediate results
