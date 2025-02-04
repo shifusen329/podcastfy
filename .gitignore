@@ -55,3 +55,9 @@ htmlcov/
 # Logs
 *.log
 logs/
+
+# Temporary and test files
+*_backup.py
+*.checkpoint.py
+original_transcript.txt
+test_*_generator.py
