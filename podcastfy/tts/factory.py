@@ -7,6 +7,8 @@ from .providers.openai import OpenAITTS
 from .providers.edge import EdgeTTS
 from .providers.gemini import GeminiTTS
 from .providers.geminimulti import GeminiMultiTTS
+from .providers.kokoro import KokoroTTS
+from .providers.novelai import NovelAITTS
 class TTSProviderFactory:
     """Factory class for creating TTS providers."""
     
@@ -15,7 +17,9 @@ class TTSProviderFactory:
         'openai': OpenAITTS,
         'edge': EdgeTTS,
         'gemini': GeminiTTS,
-        'geminimulti': GeminiMultiTTS
+        'geminimulti': GeminiMultiTTS,
+        'kokoro': KokoroTTS,
+        'novelai': NovelAITTS
     }
     
     @classmethod
@@ -44,4 +48,4 @@ class TTSProviderFactory:
     @classmethod
     def register_provider(cls, name: str, provider_class: Type[TTSProvider]) -> None:
         """Register a new provider class."""
-        cls._providers[name.lower()] = provider_class 
+        cls._providers[name.lower()] = provider_class
