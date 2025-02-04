@@ -41,6 +41,10 @@ data/transcripts/*
 *.swp
 *.swo
 *~
+*.code-workspace
+
+# Backup files
+*.bak
 
 # Testing
 .pytest_cache/
