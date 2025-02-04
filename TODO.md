@@ -93,6 +93,32 @@
 - [ ] Add progress towards target display
 - [ ] Add validation for min/max wordcount limits
 
+## 9. Add LangSmith Integration
+- [x] Add LangSmith environment variables
+- [x] Add tracing to content generation:
+  - generate_qa_content
+  - generate_long_form
+  - calculate_chunk_size
+  - chunk_content
+  - enhance_prompt_params
+- [x] Add tracing to content extraction:
+  - extract_content
+  - extract_from_directory
+  - generate_topic_content
+- [x] Add tracing to client functions:
+  - process_content
+  - generate_podcast
+- [x] Add detailed run metadata tracking:
+  - Input types and sources
+  - Configuration settings
+  - Feature usage
+  - Chunk settings
+  - Error handling
+- [ ] Add trace visualization in UI
+- [ ] Add performance monitoring dashboard
+- [ ] Add error rate tracking
+- [ ] Add cost tracking for API calls
+
 ## Notes
 - Each task should include appropriate error handling
 - Add logging for debugging

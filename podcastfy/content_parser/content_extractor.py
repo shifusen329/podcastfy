@@ -10,6 +10,7 @@ import logging
 import re
 from typing import List, Union
 from urllib.parse import urlparse
+from langsmith import traceable
 from .youtube_transcriber import YouTubeTranscriber
 from .website_extractor import WebsiteExtractor
 from .pdf_extractor import PDFExtractor
@@ -48,6 +49,37 @@ class ContentExtractor:
 		except ValueError:
 			return False
 
+	@traceable(name="extract_from_directory")
+	def extract_from_directory(self, directory: str, recursive: bool = False, file_types: List[str] = None) -> str:
+		"""Extract content from all files in a directory.
+		
+		Args:
+			directory (str): Path to directory to process
+			recursive (bool): Whether to process subdirectories
+			file_types (List[str]): List of file extensions to process (e.g. ['pdf', 'txt'])
+							  If None, process all files
+							  
+		Returns:
+			str: Combined content from all processed files
+		"""
+		from podcastfy.utils.directory import DirectoryProcessor
+		
+		processor = DirectoryProcessor(recursive, file_types)
+		files = processor.process_directory(directory)
+		
+		contents = []
+		for file in files:
+			try:
+				content = self.extract_content(file)
+				if content:  # Only add non-empty content
+					contents.append(content)
+			except Exception as e:
+				logger.error(f"Error processing file {file}: {str(e)}")
+				continue
+				
+		return "\n\n".join(contents)
+
+	@traceable(name="extract_content")
 	def extract_content(self, source: str) -> str:
 		"""
 		Extract content from various sources.
@@ -70,11 +102,18 @@ class ContentExtractor:
 				else:
 					return self.website_extractor.extract_content(source)
 			else:
-				raise ValueError("Unsupported source type")
+				# Try reading as text file
+				try:
+					with open(source, 'r', encoding='utf-8') as f:
+						return f.read()
+				except UnicodeDecodeError:
+					logger.warning(f"Skipping binary file: {source}")
+					return ""
 		except Exception as e:
 			logger.error(f"Error extracting content from {source}: {str(e)}")
 			raise
 	
+	@traceable(name="generate_topic_content")
 	def generate_topic_content(self, topic: str) -> str:
 		"""
 		Generate content based on a given topic using a generative model.

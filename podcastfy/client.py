@@ -10,6 +10,7 @@ import os
 import uuid
 import typer
 import yaml
+from langsmith import traceable
 from podcastfy.content_parser.content_extractor import ContentExtractor
 from podcastfy.content_generator import ContentGenerator
 from podcastfy.text_to_speech import TextToSpeech
@@ -28,6 +29,7 @@ app = typer.Typer()
 os.environ["LANGCHAIN_TRACING_V2"] = "False"
 
 
+@traceable(name="process_content")
 def process_content(
     urls: Optional[List[str]] = None,
     transcript_file: Optional[str] = None,
@@ -289,6 +291,7 @@ if __name__ == "__main__":
     app()
 
 
+@traceable(name="generate_podcast")
 def generate_podcast(
     urls: Optional[List[str]] = None,
     url_file: Optional[str] = None,

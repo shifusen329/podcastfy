@@ -17,6 +17,8 @@ from .handlers.style import update_style_fields, validate_style_config
 from .handlers.longform import update_chunk_sliders, toggle_longform_controls
 from .handlers.voice import update_voice_choices, sample_voice, generate_audio
 from .handlers.progress import start_progress, update_generation_progress, end_progress
+from .handlers.input import process_multiple_urls
+from podcastfy.content_parser.content_extractor import ContentExtractor
 
 # Import utilities
 from .utils.directory import combine_directory_texts, is_text_directory
@@ -76,7 +78,8 @@ def create_app():
         def generate_podcast_interface(*args):
             """Main interface for podcast generation."""
             # Extract arguments
-            (text_input, url_input, file_input, format_type, style, creativity, podcast_name, podcast_tagline,
+            (text_input, url_input, file_input, directory_input, recursive, file_types,
+             format_type, style, creativity, podcast_name, podcast_tagline,
              dialogue_structure, role1, role2, engagement, user_instructions,
              tts_model, voice1, voice2, output_language,
              longform_enabled, chunk_size, num_chunks) = args
@@ -86,20 +89,44 @@ def create_app():
             
             try:
                 # Input validation - check if any input is provided
-                if not text_input and not url_input and not file_input:
-                    yield None, "Please provide input via text, URL, or file upload.", update_generation_progress(0, "No input provided", 0)[0]
+                if not any([text_input, url_input, file_input, directory_input]):
+                    yield None, "Please provide input via text, URL, file upload, or directory path.", update_generation_progress(0, "No input provided", 0)[0]
                     return
 
-                # Check if URL input is an image file
-                is_image = url_input and any(url_input.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png'])
+                # Process multiple URLs if provided
+                urls = None
+                if url_input:
+                    url_file = process_multiple_urls(url_input)
+                    if url_file:
+                        with open(url_file, 'r') as f:
+                            urls = [line.strip() for line in f if line.strip()]
+                        os.unlink(url_file)  # Clean up temporary file
                 
                 # Add run metadata
                 run_metadata = {
-                    "input_type": "file" if file_input else "image" if is_image else "text" if text_input else "url",
+                    "input_type": "file" if file_input else "text" if text_input else "url",
                     "format_type": format_type,
                     "longform_enabled": longform_enabled,
                     "tts_model": tts_model,
-                    "output_language": output_language
+                    "output_language": output_language,
+                    "has_directory_input": bool(directory_input),
+                    "has_recursive_directory": bool(directory_input and recursive),
+                    "has_file_types": bool(file_types and "All Files" not in file_types),
+                    "has_urls": bool(url_input),
+                    "has_text": bool(text_input),
+                    "has_style": bool(style),
+                    "has_podcast_name": bool(podcast_name),
+                    "has_podcast_tagline": bool(podcast_tagline),
+                    "has_dialogue_structure": bool(dialogue_structure),
+                    "has_roles": bool(role1 or role2),
+                    "has_engagement": bool(engagement),
+                    "has_user_instructions": bool(user_instructions),
+                    "has_voice_config": bool(voice1 or voice2),
+                    "chunk_settings": {
+                        "enabled": longform_enabled,
+                        "chunk_size": chunk_size if longform_enabled else None,
+                        "num_chunks": num_chunks if longform_enabled else None
+                    }
                 }
                 
                 # Create conversation config dictionary
@@ -128,7 +155,6 @@ def create_app():
                 if output_language:
                     config['output_language'] = output_language
 
-                
                 if longform_enabled:
                     config['chunk_settings'] = {
                         'max_num_chunks': num_chunks,
@@ -142,94 +168,62 @@ def create_app():
                 yield None, None, update_generation_progress(1, None, 25)[0]
                 
                 # Generate podcast
-                if text_input:
-                    # Check if input is a directory path
-                    if is_text_directory(text_input):
-                        try:
-                            # Combine all text files into one string
-                            combined_text, was_truncated = combine_directory_texts(text_input)
-                            if was_truncated:
-                                yield None, None, update_generation_progress(1, "Content too large, using most recent files up to 20MB", 25)[0]
-                            transcript_file = generate_podcast(
-                                text=combined_text,  # Pass combined text directly
-                                transcript_only=True,
-                                longform=longform_enabled,
-                                conversation_config=config
-                            )
-                        except ValueError as e:
-                            yield None, f"Error processing directory: {str(e)}", update_generation_progress(0, "Directory processing failed", 0)[0]
-                            return
-                    else:
-                        # Regular text input
-                        transcript_file = generate_podcast(
-                            text=text_input,
-                            transcript_only=True,
-                            longform=longform_enabled,
-                            conversation_config=config
-                        )
+                if directory_input:
+                    # Use content extractor to process directory
+                    content_extractor = ContentExtractor()
+                    directory_content = content_extractor.extract_from_directory(
+                        directory=directory_input,
+                        recursive=recursive,
+                        file_types=file_types if "All Files" not in file_types else None
+                    )
+                    # Pass as text input to generate_podcast
+                    transcript_file = generate_podcast(
+                        text=directory_content,
+                        transcript_only=True,
+                        longform=longform_enabled,
+                        conversation_config=config
+                    )
+                elif text_input:
+                    transcript_file = generate_podcast(
+                        text=text_input,
+                        transcript_only=True,
+                        longform=longform_enabled,
+                        conversation_config=config
+                    )
                 elif file_input:
-                    # Determine file type
-                    file_path = file_input
-                    if file_path.lower().endswith(('.jpg', '.jpeg', '.png')):
-                        transcript_file = generate_podcast(
-                            image_paths=[file_path],
-                            transcript_only=True,
-                            longform=longform_enabled,
-                            conversation_config=config
-                        )
-                    elif file_path.lower().endswith('.pdf'):
-                        transcript_file = generate_podcast(
-                            urls=[file_path],  # PDF extractor handles this
-                            transcript_only=True,
-                            longform=longform_enabled,
-                            conversation_config=config
-                        )
-                    elif file_path.lower().endswith('.txt'):
-                        with open(file_path, 'r') as f:
-                            content = f.read()
-                        transcript_file = generate_podcast(
-                            text=content,
-                            transcript_only=True,
-                            longform=longform_enabled,
-                            conversation_config=config
-                        )
-                    else:
-                        yield None, "Unsupported file type. Please upload an image (.jpg, .jpeg, .png), PDF, or text file.", update_generation_progress(0, "Invalid file type", 0)[0]
-                        return
-                else:  # url_input
-                    # Check if input is a directory path
-                    if is_text_directory(url_input):
-                        try:
-                            # Combine all text files into one string
-                            combined_text, was_truncated = combine_directory_texts(url_input)
-                            if was_truncated:
-                                yield None, None, update_generation_progress(1, "Content too large, using most recent files up to 20MB", 25)[0]
-                            transcript_file = generate_podcast(
-                                text=combined_text,  # Pass combined text directly
-                                transcript_only=True,
-                                longform=longform_enabled,
-                                conversation_config=config
-                            )
-                        except ValueError as e:
-                            yield None, f"Error processing directory: {str(e)}", update_generation_progress(0, "Directory processing failed", 0)[0]
-                            return
-                    else:
-                        # Check if it's an image file
-                        if is_image:
-                            transcript_file = generate_podcast(
-                                image_paths=[url_input],
-                                transcript_only=True,
-                                longform=longform_enabled,
-                                conversation_config=config
-                            )
+                    # Handle multiple files
+                    image_paths = []
+                    text_content = []
+                    file_urls = []
+                    
+                    for file_path in file_input:
+                        if file_path.lower().endswith(('.jpg', '.jpeg', '.png')):
+                            image_paths.append(file_path)
+                        elif file_path.lower().endswith('.pdf'):
+                            file_urls.append(file_path)  # PDF extractor handles this
+                        elif file_path.lower().endswith('.txt'):
+                            with open(file_path, 'r') as f:
+                                text_content.append(f.read())
                         else:
-                            # Regular URL input
-                            transcript_file = generate_podcast(
-                                urls=[url_input],
-                                transcript_only=True,
-                                longform=longform_enabled,
-                                conversation_config=config
-                            )
+                            yield None, f"Unsupported file type: {file_path}", update_generation_progress(0, "Invalid file type", 0)[0]
+                            return
+                    
+                    # Generate podcast with all inputs
+                    transcript_file = generate_podcast(
+                        text="\n\n".join(text_content) if text_content else None,
+                        urls=file_urls if file_urls else None,
+                        image_paths=image_paths if image_paths else None,
+                        transcript_only=True,
+                        longform=longform_enabled,
+                        conversation_config=config
+                    )
+                elif urls:  # From processed URL input
+                    transcript_file = generate_podcast(
+                        urls=urls,
+                        transcript_only=True,
+                        longform=longform_enabled,
+                        conversation_config=config
+                    )
                 
                 # Read generated transcript
                 with open(transcript_file, 'r') as f:
@@ -340,6 +334,9 @@ def create_app():
                 input_components['text_input'],
                 input_components['url_input'],
                 input_components['file_input'],
+                input_components['directory_input'],
+                input_components['recursive'],
+                input_components['file_types'],
                 style_components['format_type'],
                 style_components['style'],
                 style_components['creativity'],

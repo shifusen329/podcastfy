@@ -9,6 +9,7 @@ import os
 from typing import Optional, Dict, Any, List
 import re
 
+from langsmith import traceable
 from langchain_community.chat_models import ChatLiteLLM
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_community.llms.llamafile import Llamafile
@@ -298,6 +299,7 @@ The podcast should be titled "{podcast_name}" with the tagline "{podcast_tagline
 
         return user_prompt_template, image_path_keys
 
+    @traceable(name="generate_qa_content")
     def generate_qa_content(
         self,
         input_texts: str = "",
