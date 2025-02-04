@@ -90,6 +90,18 @@ STYLES = {
     }
 }
 
+# Available dialogue structures
+DIALOGUE_STRUCTURES = [
+    'Topic Introduction',
+    'Summary of Key Points',
+    'Discussions',
+    'Q&A Session',
+    'Farewell Messages',
+    'Deep Dive Discussion',
+    'Expert Analysis',
+    'Future Implications'
+]
+
 # Available engagement techniques
 ENGAGEMENT_TECHNIQUES = [
     'Rhetorical Questions',
@@ -105,5 +117,11 @@ ENGAGEMENT_TECHNIQUES = [
     'Statistics',
     'Expert Opinions',
     'Real-world Examples',
-    'Thought Experiments'
+    'Thought Experiments',
+    'Visual Descriptions',
+    'Technical Deep Dives',
+    'Comparative Analysis',
+    'Future Predictions',
+    'Interactive Elements',
+    'Storytelling Elements'
 ]

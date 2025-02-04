@@ -58,6 +58,34 @@ def update_style_fields(style, format_type="conversation", current_engagement=No
         merged_engagement
     ]
 
+def create_conversation_config(style, role1, role2, engagement_techniques):
+    """Create conversation configuration dictionary.
+    
+    Args:
+        style: Selected style preset
+        role1: Role of first speaker
+        role2: Role of second speaker
+        engagement_techniques: Selected engagement techniques
+        
+    Returns:
+        Dictionary containing conversation configuration
+    """
+    config = {}
+    
+    if style:
+        config['conversation_style'] = [style]
+    
+    if role1:
+        config['roles_person1'] = role1
+    
+    if role2:
+        config['roles_person2'] = role2
+    
+    if engagement_techniques:
+        config['engagement_techniques'] = engagement_techniques
+    
+    return config
+
 def validate_style_config(format_type, config):
     """Validate style configuration based on format.
     

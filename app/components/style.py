@@ -19,13 +19,8 @@ def get_style_presets(format_type="conversation"):
 
 def get_dialogue_structures():
     """Get available dialogue structures."""
-    return [
-        "Topic Introduction",
-        "Summary of Key Points",
-        "Discussions",
-        "Q&A Session",
-        "Farewell Messages"
-    ]
+    from ..config.styles import DIALOGUE_STRUCTURES
+    return DIALOGUE_STRUCTURES
 
 def get_engagement_techniques():
     """Get available engagement techniques."""
@@ -54,7 +49,7 @@ def create_style_components():
             choices=list(get_style_presets("conversation").keys()),
             label="Style",
             info="Select a style preset",
-            value=None
+            value="engaging"  # Default to engaging style
         )
         
         creativity = gr.Slider(
@@ -84,31 +79,38 @@ def create_style_components():
             choices=get_dialogue_structures(),
             label="Dialogue Structure",
             info="Optional: Choose the conversation format",
-            value=None
+            value="Discussions"  # Default to Discussions for conversation format
         )
         
         # Role fields in a group for conditional visibility
         with gr.Group() as roles_group:
             with gr.Row():
+                # Get default roles from engaging style
+                default_roles = STYLES['conversation']['engaging']
                 role1 = gr.Textbox(
                     label="Role 1",
                     info="Optional: Define the first speaker's role",
-                    placeholder="e.g., Host or Narrator"
+                    placeholder="e.g., Host or Narrator",
+                    value=default_roles['roles_person1']
                 )
                 
                 role2 = gr.Textbox(
                     label="Role 2",
                     info="Optional: Define the second speaker's role",
                     placeholder="e.g., Guest",
-                    visible=True  # Initially visible since conversation is default
+                    visible=True,  # Initially visible since conversation is default
+                    value=default_roles['roles_person2']
                 )
         
         # Engagement and Instructions
+        # Get default engagement techniques from engaging style
+        default_engagement = STYLES['conversation']['engaging']['engagement_techniques']
         engagement = gr.Dropdown(
             choices=get_engagement_techniques(),
             label="Engagement Techniques",
             info="Optional: Select techniques to make the content engaging",
-            multiselect=True
+            multiselect=True,
+            value=default_engagement
         )
         
         user_instructions = gr.Textbox(
@@ -126,13 +128,18 @@ def create_style_components():
         # Get style choices for the selected format
         style_choices = list(get_style_presets(format_type).keys())
         
+        # Set default style and dialogue structure based on format
+        default_style = "engaging" if format_type == "conversation" else "narrative"
+        default_structure = "Discussions" if format_type == "conversation" else "Topic Introduction"
+        
         return {
             role1: gr.update(label=f"Role ({role1_label})"),
             role2: gr.update(
                 visible=format_info["supports_roles"],
                 label="Role (Guest)" if format_info["supports_roles"] else ""
             ),
-            style: gr.update(choices=style_choices, value=None)
+            style: gr.update(choices=style_choices, value=default_style),
+            dialogue_structure: gr.update(value=default_structure)
         }
     
     # Update components based on style change
@@ -150,7 +157,7 @@ def create_style_components():
     format_type.change(
         fn=update_format_components,
         inputs=[format_type],
-        outputs=[role1, role2, style]
+        outputs=[role1, role2, style, dialogue_structure]
     )
 
     style.change(
