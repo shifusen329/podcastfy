@@ -142,11 +142,12 @@ class PodcastTemplate:
             Text with fixed tags
         """
         try:
-            # Fix consecutive closing/opening tags of the same type
+            # Fix consecutive closing/opening tags of the same type, but not for Speaker tags
             for tag in self.supported_tags:
-                # Replace </tag><tag> with a space
-                pattern = f'</{tag}>\s*<{tag}>'
-                text = re.sub(pattern, ' ', text)
+                if tag != "Speaker":
+                    # Replace </tag><tag> with a space
+                    pattern = f'</{tag}>\s*<{tag}>'
+                    text = re.sub(pattern, ' ', text)
             
             # Clean up any extra whitespace
             text = re.sub(r'\s+', ' ', text)

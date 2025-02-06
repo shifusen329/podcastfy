@@ -170,27 +170,64 @@ class GeminiTTS(TTSProvider):
             else:
                 # For monologue format or when no voice2 provided, use single voice
                 logger.info("\nProcessing monologue format:")
-                cleaned_text = re.sub(r'</?(?:Speaker|Person[12])>', '', text)
-                logger.info(f"Cleaned text length: {len(cleaned_text)} chars")
-                logger.info(f"Preview: {cleaned_text[:100]}...")
                 
-                synthesis_input = texttospeech_v1beta1.SynthesisInput(text=cleaned_text)
-                voice_params = texttospeech_v1beta1.VoiceSelectionParams(
-                    language_code="-".join(voice.split("-")[:2]),
-                    name=voice,
-                )
-                audio_config = texttospeech_v1beta1.AudioConfig(
-                    audio_encoding=texttospeech_v1beta1.AudioEncoding.MP3
-                )
+                # Extract Speaker content
+                speaker_pattern = r'<Speaker>(.*?)</Speaker>'
+                speaker_matches = re.findall(speaker_pattern, text, re.DOTALL)
                 
-                logger.info("\nSending TTS request...")
-                response = self.client.synthesize_speech(
-                    input=synthesis_input,
-                    voice=voice_params,
-                    audio_config=audio_config
-                )
-                logger.info(f"Received audio response: {len(response.audio_content)/1024:.1f}KB")
-                return response.audio_content
+                # Generate audio for Speaker content
+                speaker_audio = []
+                logger.info(f"\nGenerating Speaker audio segments ({len(speaker_matches)} segments):")
+                for i, content in enumerate(speaker_matches, 1):
+                    logger.info(f"\nSpeaker Segment {i}/{len(speaker_matches)}:")
+                    logger.info(f"Content length: {len(content)} chars")
+                    logger.info(f"Content preview: {content[:100]}...")
+                    
+                    synthesis_input = texttospeech_v1beta1.SynthesisInput(text=content.strip())
+                    voice_params = texttospeech_v1beta1.VoiceSelectionParams(
+                        language_code="-".join(voice.split("-")[:2]),
+                        name=voice,
+                    )
+                    audio_config = texttospeech_v1beta1.AudioConfig(
+                        audio_encoding=texttospeech_v1beta1.AudioEncoding.MP3
+                    )
+                    
+                    logger.info(f"Sending TTS request for Speaker segment {i}...")
+                    response = self.client.synthesize_speech(
+                        input=synthesis_input,
+                        voice=voice_params,
+                        audio_config=audio_config
+                    )
+                    logger.info(f"Received audio response: {len(response.audio_content)/1024:.1f}KB")
+                    speaker_audio.append(response.audio_content)
+                
+                # Merge audio segments
+                from pydub import AudioSegment
+                import io
+                
+                logger.info("\nMerging audio segments:")
+                combined = AudioSegment.empty()
+                total_duration = 0
+                
+                for i, p1 in enumerate(speaker_audio, 1):
+                    logger.info(f"\nProcessing segment {i}/{len(speaker_audio)}:")
+                    
+                    # Add Speaker audio
+                    segment = AudioSegment.from_file(io.BytesIO(p1))
+                    duration = len(segment)/1000
+                    total_duration += duration
+                    logger.info(f"Duration: {duration:.1f}s")
+                    combined += segment
+                
+                logger.info(f"\nTotal duration: {total_duration:.1f}s")
+                
+                # Export combined audio
+                logger.info("\nExporting combined audio...")
+                output = io.BytesIO()
+                combined.export(output, format="mp3", codec="libmp3lame", bitrate="320k")
+                final_audio = output.getvalue()
+                logger.info(f"Final audio size: {len(final_audio)/1024:.1f}KB")
+                return final_audio
             
         except Exception as e:
             logger.error(f"Failed to generate audio: {str(e)}")
