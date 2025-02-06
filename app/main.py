@@ -3,7 +3,6 @@
 import gradio as gr
 import os
 from podcastfy.client import generate_podcast
-from langsmith import traceable
 
 # Import components
 from .components.input import create_input_components
@@ -75,7 +74,6 @@ def create_app():
                 )
         
         # Event handlers
-        @traceable(run_name="generate_transcript", tags=["podcastfy"])
         def generate_transcript_interface(*args):
             """Interface for transcript-only generation."""
             # Extract arguments
@@ -206,7 +204,6 @@ def create_app():
             except Exception as e:
                 yield f"Error: {str(e)}", update_generation_progress(0, "Generation failed", 0)[0]
 
-        @traceable(run_name="generate_podcast", tags=["podcastfy"])
         def generate_podcast_interface(*args):
             """Main interface for podcast generation."""
             # Extract arguments

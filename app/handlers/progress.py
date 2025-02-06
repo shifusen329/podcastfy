@@ -1,10 +1,8 @@
 """Event handlers for progress tracking."""
 
 import gradio as gr
-from langsmith import traceable
 from ..components.progress import STAGES
 
-@traceable(run_name="start_progress", tags=["podcastfy", "progress"])
 def start_progress():
     """Initialize progress tracking."""
     # Add run metadata
@@ -33,7 +31,6 @@ def start_progress():
         '''
         return [gr.HTML(value=html)]
 
-@traceable(run_name="update_progress", tags=["podcastfy", "progress"])
 def update_generation_progress(stage: int, status: str, progress: float):
     """Update progress tracking components."""
     # Add run metadata
@@ -71,7 +68,6 @@ def update_generation_progress(stage: int, status: str, progress: float):
         '''
         return [gr.HTML(value=html)]
 
-@traceable(run_name="end_progress", tags=["podcastfy", "progress"])
 def end_progress(success=True):
     """Complete progress tracking."""
     # Add run metadata

@@ -9,7 +9,6 @@ import os
 from typing import Optional, Dict, Any, List
 import re
 
-from langsmith import traceable
 from langchain_community.chat_models import ChatLiteLLM
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_community.llms.llamafile import Llamafile
@@ -66,7 +65,6 @@ class LLMBackend:
                 api_key=os.environ[api_key_label],
             )
 
-from langsmith.run_helpers import traceable
 
 class LongFormContentGenerator:
     """
@@ -84,7 +82,6 @@ class LongFormContentGenerator:
         self.max_num_chunks = config_conversation.get("max_num_chunks", 7)
         self.min_chunk_size = config_conversation.get("min_chunk_size", 600)
 
-    @traceable(name="calculate_chunk_size")
     def __calculate_chunk_size(self, input_content: str) -> int:
         """Calculate chunk size based on input content length."""
         input_length = len(input_content)
@@ -97,7 +94,6 @@ class LongFormContentGenerator:
         
         return input_length // (input_length // self.min_chunk_size)
 
-    @traceable(name="chunk_content")
     def chunk_content(self, input_content: str, chunk_size: int) -> List[str]:
         """Split input content into manageable chunks while preserving context."""
         sentences = input_content.split('. ')
@@ -118,7 +114,6 @@ class LongFormContentGenerator:
             chunks.append('. '.join(current_chunk) + '.')
         return chunks
 
-    @traceable(name="enhance_prompt")
     def enhance_prompt_params(self, prompt_params: Dict, 
                             part_idx: int, 
                             total_parts: int,
@@ -188,7 +183,6 @@ class LongFormContentGenerator:
         print(f"\nFinal Instructions:\n{enhanced_params['instruction']}")
         return enhanced_params
 
-    @traceable(name="generate_longform")
     def generate_long_form(self, input_content: str, prompt_params: Dict) -> str:
         """Generate a complete long-form conversation using chunked content.
         
@@ -382,7 +376,6 @@ The podcast should be titled "{podcast_name}" with the tagline "{podcast_tagline
 
         return user_prompt_template, image_path_keys
 
-    @traceable(name="generate_qa_content")
     def generate_qa_content(
         self,
         input_texts: str = "",

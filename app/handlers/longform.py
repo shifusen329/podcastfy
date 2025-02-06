@@ -1,11 +1,9 @@
 """Event handlers for longform components."""
 
 import gradio as gr
-from langsmith import traceable
 from ..components.longform import update_chunk_sliders as update_sliders
 from ..config.settings import CHUNK_CONFIGS
 
-@traceable(run_name="update_chunk_sliders", tags=["podcastfy", "longform-update"])
 def update_chunk_sliders(choice):
     """Handle chunk slider updates when configuration is changed."""
     try:
@@ -24,7 +22,6 @@ def update_chunk_sliders(choice):
         print(f"Error updating chunk sliders: {str(e)}")
         return None
 
-@traceable(run_name="validate_longform_settings", tags=["podcastfy", "validation"])
 def validate_longform_settings(longform_enabled, chunk_size, num_chunks, text_input=None, url_input=None):
     """Validate longform settings."""
     # Add run metadata
@@ -52,7 +49,6 @@ def validate_longform_settings(longform_enabled, chunk_size, num_chunks, text_in
     
     return len(errors) == 0, "\n".join(errors) if errors else "Valid"
 
-@traceable(run_name="toggle_longform_controls", tags=["podcastfy", "longform-update"])
 def toggle_longform_controls(enabled):
     """Handle visibility of longform controls."""
     # Add run metadata

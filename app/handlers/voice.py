@@ -4,7 +4,6 @@ import os
 import uuid
 import tempfile
 import gradio as gr
-from langsmith import traceable
 from podcastfy.text_to_speech import TextToSpeech
 from podcastfy.tts.providers.novelai import NovelAITTS
 from podcastfy.tts.providers.kokoro import KokoroTTS
@@ -61,7 +60,6 @@ def update_voice_choices(tts_model, format_type="conversation"):
     
     return [voice1, voice2, sample_btn, sample_audio]
 
-@traceable(run_name="sample_voice", tags=["podcastfy", "voice-sample"])
 def sample_voice(voice1, voice2, tts_model, format_type="conversation"):
     """Generate a sample audio using selected voices."""
     try:
@@ -142,7 +140,6 @@ def sample_voice(voice1, voice2, tts_model, format_type="conversation"):
         print(f"Error sampling voice: {str(e)}")
         return None
 
-@traceable(run_name="generate_audio", tags=["podcastfy", "audio-generation"])
 def generate_audio(transcript, tts_model, voice1=None, voice2=None, format_type="conversation"):
     """Generate audio from transcript using specified TTS model and voices."""
     try:
@@ -205,7 +202,6 @@ def generate_audio(transcript, tts_model, voice1=None, voice2=None, format_type=
         print(f"Error generating audio: {str(e)}")
         return None
 
-@traceable(run_name="validate_voice_settings", tags=["podcastfy", "validation"])
 def validate_voice_settings(tts_model, format_type="conversation", voice1=None, voice2=None):
     """Validate voice settings based on selected TTS model and format."""
     # Add run metadata
