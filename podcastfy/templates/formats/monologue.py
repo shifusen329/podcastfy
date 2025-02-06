@@ -26,9 +26,6 @@ class MonologueTemplate(PodcastTemplate):
         # First convert any conversation-style tags to monologue format
         text = self._convert_conversation_tags(text)
         
-        # Then combine multiple Speaker tags into one continuous speech
-        text = self._combine_speaker_tags(text)
-        
         # Then apply base cleaning
         return super().clean_markup(text)
     
@@ -60,28 +57,6 @@ class MonologueTemplate(PodcastTemplate):
         
         return text
     
-    def _combine_speaker_tags(self, text: str) -> str:
-        """Combine multiple Speaker tags into one continuous speech.
-        
-        Args:
-            text: Text to combine
-            
-        Returns:
-            Text with all Speaker sections combined into one
-        """
-        # Extract all Speaker content
-        pattern = r'<Speaker>(.*?)</Speaker>'
-        matches = re.findall(pattern, text, re.DOTALL)
-        
-        if not matches:
-            return text
-            
-        # Combine all content with proper spacing
-        combined_content = ' '.join(match.strip() for match in matches)
-        
-        # Return single Speaker tag with combined content
-        return f'<Speaker>{combined_content}</Speaker>'
-    
     def get_template(self) -> str:
         """Get the monologue template string."""
         return """Format Requirements:
@@ -105,11 +80,16 @@ class MonologueTemplate(PodcastTemplate):
 Example format:
 <Speaker>Welcome to this discussion.</Speaker>
 <Speaker>Let me share my thoughts on this topic.</Speaker>
-<Speaker>Here's what I've discovered in my research.</Speaker>"""
+<Speaker>Here's what I've discovered in my research.</Speaker>
+
+Additional Notes:
+- Keep each <Speaker> block under 5000 bytes for TTS compatibility.
+- Aim for 2-3 sentences per <Speaker> block.
+- Break long explanations into multiple <Speaker> blocks.
+"""
 
     def get_longform_instructions(self) -> str:
         """Get format-specific instructions for longform content."""
-        print(f"\n=== Getting Monologue Longform Instructions ===")
         instructions = """
 Format Rules for Long-form Monologue:
 1. Tag Usage:
@@ -137,6 +117,11 @@ Format Rules for Long-form Monologue:
    - No meta-commentary about parts or breaks
    - No greetings or farewells except when instructed
    - Keep narrative flowing naturally
-   - Each paragraph must connect to the next"""
-        print(f"Instructions:\n{instructions}")
+   - Each paragraph must connect to the next
+
+Additional Notes:
+- Keep each <Speaker> block under 5000 bytes for TTS compatibility.
+- Aim for 2-3 sentences per <Speaker> block.
+- Break long explanations into multiple <Speaker> blocks.
+"""
         return instructions

@@ -120,24 +120,13 @@ class LongFormContentGenerator:
                             chat_context: str,
                             chunk: str) -> Dict:
         """Enhance prompt parameters for content generation."""
-        # Log input state
-        print(f"\n=== Enhancing Prompt for Part {part_idx+1}/{total_parts} ===")
-        print(f"Context length: {len(chat_context) if chat_context else 0}")
-        if chat_context:
-            print(f"Previous context ends with: {chat_context[-200:] if len(chat_context) > 200 else chat_context}")
-        else:
-            print("No previous context")
 
         enhanced_params = prompt_params.copy()
         enhanced_params["context"] = chat_context
 
         # Get format-specific longform instructions
         format_instructions = self.template.get_longform_instructions()
-        print(f"\nFormat Instructions:\n{format_instructions}")
 
-        # Add chunk position rules
-        print(f"\n{'First' if part_idx == 0 else 'Last' if part_idx == total_parts - 1 else 'Middle'} Chunk Instructions:")
-        
         # Determine chunk-specific instructions
         if part_idx == 0:
             chunk_rules = f"""
@@ -158,7 +147,7 @@ class LongFormContentGenerator:
             3. End with an open-ended question or statement that leads into the next topic.
             4. DO NOT:
                - Introduce yourself or the podcast
-               - End with any farewells or thank yous
+               - End with any farewells or thank yous.
                - Mention PODCASTIFY
                - Add any transitional phrases like "moving on" or "next"
             """
@@ -180,7 +169,6 @@ class LongFormContentGenerator:
         4. ONLY discuss the content from this section: {chunk[:200]}...
         """
         
-        print(f"\nFinal Instructions:\n{enhanced_params['instruction']}")
         return enhanced_params
 
     def generate_long_form(self, input_content: str, prompt_params: Dict) -> str:
@@ -207,33 +195,24 @@ class LongFormContentGenerator:
         - Last chunk handles conclusion
         """
         # Log initial state
-        print("\n=== Starting Long Form Generation ===")
-        print(f"Input content length: {len(input_content)}")
-        print(f"First 200 chars: {input_content[:200]}...")
+        print("\n=== Long Form Generation ===")
         
         # Calculate appropriate chunk size
         chunk_size = self.__calculate_chunk_size(input_content)
-        print(f"\nCalculated chunk size: {chunk_size}")
-        
         chunks = self.chunk_content(input_content, chunk_size)
         num_parts = len(chunks)
-        print(f"Split into {num_parts} chunks")
+        print(f"Chunks: {num_parts}, size {chunk_size}")
         
         # Track conversation pieces
         conversation_parts = []
         chat_context = ""  # Start with empty context
         
         for i, chunk in enumerate(chunks):
-            print(f"\n=== Processing Chunk {i+1}/{num_parts} ===")
-            print(f"Chunk size: {len(chunk)}")
-            print(f"Chunk preview: {chunk[:200]}...")
+            print(f"Processing chunk {i+1}/{num_parts}")
             
             # For middle and end parts, use only previous response as context
             if i > 0:
                 chat_context = conversation_parts[-1]
-                print(f"\nUsing previous response as context:")
-                print(f"Context preview: {chat_context[:200]}...")
-                print(f"Context ends with: {chat_context[-200:] if len(chat_context) > 200 else chat_context}")
             
             # Prepare parameters for this chunk
             enhanced_params = self.enhance_prompt_params(
@@ -246,8 +225,6 @@ class LongFormContentGenerator:
             enhanced_params["input_text"] = chunk
             
             # Generate response for this chunk
-            print("\nGenerating response...")
-            # Create a new chain for each chunk to avoid parameter persistence
             chain = ChatPromptTemplate.from_messages([
                 SystemMessage(content=enhanced_params["instruction"]),
                 HumanMessage(content=f"Please analyze this input and generate a conversation. {chunk}")
@@ -255,16 +232,11 @@ class LongFormContentGenerator:
             # Remove instruction from params since it's now in the system message
             params_without_instruction = {k: v for k, v in enhanced_params.items() if k != "instruction"}
             response = chain.invoke(params_without_instruction)
-            print(f"\nGenerated Response Preview:")
-            print(f"First 200 chars: {response[:200]}...")
-            print(f"Last 200 chars: {response[-200:]}...")
             
             conversation_parts.append(response)
         
         # Combine all parts into final conversation
-        print("\n=== Combining Parts ===")
         final_conversation = "\n".join(conversation_parts)
-        print(f"Final length: {len(final_conversation)}")
         return final_conversation
 
 
